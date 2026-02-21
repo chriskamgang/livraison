@@ -41,4 +41,9 @@ return [
         'secret_key' => env('FREEMOPAY_SECRET_KEY'),
     ],
 
+    'ultramsg' => [
+        'instance_id' => env('ULTRAMSG_INSTANCE_ID'),
+        'token' => env('ULTRAMSG_TOKEN'),
+    ],
+
 ];

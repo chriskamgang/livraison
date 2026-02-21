@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -132,6 +133,14 @@ class OrderController extends Controller
         // Incrémenter usage coupon
         if ($couponId) {
             \App\Models\Coupon::find($couponId)->increment('usage_count');
+        }
+
+        // Envoyer notification WhatsApp au client
+        try {
+            $whatsappService = new WhatsAppService();
+            $whatsappService->notifyOrderReceived($order->load('restaurant'), $request->user());
+        } catch (\Exception $e) {
+            \Log::error('WhatsApp notification failed', ['error' => $e->getMessage()]);
         }
 
         return response()->json([

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 
 class DeliveryController extends Controller
@@ -100,6 +101,14 @@ class DeliveryController extends Controller
             'assigned_at' => now(),
         ]);
 
+        // Notification WhatsApp au livreur
+        try {
+            $whatsappService = new WhatsAppService();
+            $whatsappService->notifyDeliveryAssigned($order->load('restaurant', 'user'), $driver);
+        } catch (\Exception $e) {
+            \Log::error('WhatsApp notification failed', ['error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'message'  => 'Commande acceptée !',
             'delivery' => $order->delivery->load(['order.restaurant', 'order.address']),
@@ -131,11 +140,29 @@ class DeliveryController extends Controller
 
         if ($validated['status'] === 'on_the_way') {
             $delivery->order->update(['status' => 'on_the_way']);
+
+            // Notification WhatsApp au client : livreur en route
+            try {
+                $whatsappService = new WhatsAppService();
+                $order = $delivery->order->load('user');
+                $whatsappService->notifyDriverEnRoute($order, $request->user(), $order->user);
+            } catch (\Exception $e) {
+                \Log::error('WhatsApp notification failed', ['error' => $e->getMessage()]);
+            }
         }
 
         if ($validated['status'] === 'delivered') {
             $updates['delivered_at'] = now();
             $delivery->order->update(['status' => 'delivered', 'delivered_at' => now()]);
+
+            // Notification WhatsApp au client : commande livrée
+            try {
+                $whatsappService = new WhatsAppService();
+                $order = $delivery->order->load('user');
+                $whatsappService->notifyOrderDelivered($order, $order->user);
+            } catch (\Exception $e) {
+                \Log::error('WhatsApp notification failed', ['error' => $e->getMessage()]);
+            }
         }
 
         $delivery->update($updates);
