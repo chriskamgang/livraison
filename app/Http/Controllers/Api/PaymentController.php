@@ -45,7 +45,7 @@ class PaymentController extends Controller
         $payment = Payment::create([
             'order_id' => $order->id,
             'user_id' => auth()->id(),
-            'amount' => $order->total_amount,
+            'amount' => $order->total,
             'method' => $validated['payment_method'],
             'status' => 'pending',
             'phone' => $validated['phone'],
@@ -56,7 +56,7 @@ class PaymentController extends Controller
 
         $result = $this->freemopayService->initiatePayment([
             'phone' => $validated['phone'],
-            'amount' => (int) $order->total_amount,
+            'amount' => (int) $order->total,
             'externalId' => $payment->id,
             'callback' => $callbackUrl,
         ]);
@@ -84,7 +84,7 @@ class PaymentController extends Controller
                 'id' => $payment->id,
                 'reference' => $result['data']['reference'],
                 'status' => $result['data']['status'],
-                'amount' => $order->total_amount,
+                'amount' => $order->total,
             ],
         ]);
     }
