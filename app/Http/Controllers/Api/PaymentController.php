@@ -41,7 +41,9 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Cette commande est déjà payée'], 400);
         }
 
-        // Créer une entrée de paiement
+        // Créer une entrée de paiement avec une référence unique
+        $reference = 'PAY-' . strtoupper(uniqid()) . '-' . time();
+
         $payment = Payment::create([
             'order_id' => $order->id,
             'user_id' => auth()->id(),
@@ -49,6 +51,7 @@ class PaymentController extends Controller
             'method' => $validated['payment_method'],
             'status' => 'pending',
             'phone' => $validated['phone'],
+            'reference' => $reference,
         ]);
 
         // Initialiser le paiement avec Freemopay
