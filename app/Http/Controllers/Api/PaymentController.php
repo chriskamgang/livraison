@@ -46,7 +46,7 @@ class PaymentController extends Controller
             'order_id' => $order->id,
             'user_id' => auth()->id(),
             'amount' => $order->total_amount,
-            'payment_method' => $validated['payment_method'],
+            'method' => $validated['payment_method'],
             'status' => 'pending',
             'phone' => $validated['phone'],
         ]);
