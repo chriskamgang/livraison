@@ -30,9 +30,9 @@ class FreemopayService
             $response = Http::withBasicAuth($this->appKey, $this->secretKey)
                 ->timeout(30)
                 ->post("{$this->baseUrl}/api/v2/payment", [
-                    'phone' => $data['phone'],
+                    'payer' => (string) $data['phone'],
                     'amount' => (int) $data['amount'],
-                    'externalId' => $data['externalId'],
+                    'externalId' => (string) $data['externalId'],
                     'callback' => $data['callback'],
                 ]);
 
