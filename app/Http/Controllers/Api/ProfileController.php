@@ -143,4 +143,24 @@ class ProfileController extends Controller
 
         return response()->json(['message' => 'Toutes les notifications lues.']);
     }
+
+    // POST /api/profile/push-token
+    public function updatePushToken(Request $request)
+    {
+        $validated = $request->validate([
+            'push_token' => 'required|string',
+        ]);
+
+        $request->user()->update(['push_token' => $validated['push_token']]);
+
+        return response()->json(['message' => 'Token push enregistré avec succès.']);
+    }
+
+    // DELETE /api/profile/push-token
+    public function deletePushToken(Request $request)
+    {
+        $request->user()->update(['push_token' => null]);
+
+        return response()->json(['message' => 'Token push supprimé.']);
+    }
 }

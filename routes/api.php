@@ -48,6 +48,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/addresses', [ProfileController::class, 'addAddress']);
         Route::put('/addresses/{id}', [ProfileController::class, 'updateAddress']);
         Route::delete('/addresses/{id}', [ProfileController::class, 'deleteAddress']);
+        Route::post('/push-token', [ProfileController::class, 'updatePushToken']);
+        Route::delete('/push-token', [ProfileController::class, 'deletePushToken']);
     });
 
     // ==========================================

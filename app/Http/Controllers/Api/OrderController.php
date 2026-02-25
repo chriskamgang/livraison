@@ -70,13 +70,6 @@ class OrderController extends Controller
             ];
         }
 
-        // Vérifier montant minimum
-        if ($subtotal < $restaurant->minimum_order) {
-            return response()->json([
-                'message' => "Commande minimum : {$restaurant->minimum_order} XAF"
-            ], 422);
-        }
-
         // Gérer coupon
         $discountAmount = 0;
         $couponId       = null;
