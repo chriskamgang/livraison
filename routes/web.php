@@ -22,3 +22,7 @@ Route::get('/terms-of-service', function () {
 Route::get('/terms-of-service-driver', function () {
     return response()->file(public_path('terms-of-service-driver.html'));
 });
+
+Route::get('/delete-account', function () {
+    return response()->file(public_path('delete-account.html'));
+});
