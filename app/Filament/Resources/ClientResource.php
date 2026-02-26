@@ -41,6 +41,12 @@ class ClientResource extends Resource
                     Forms\Components\TextInput::make('phone')
                         ->label('Téléphone')
                         ->tel(),
+                    Forms\Components\TextInput::make('password')
+                        ->label('Mot de passe')
+                        ->password()
+                        ->required(fn (string $context): bool => $context === 'create')
+                        ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
+                        ->dehydrated(fn ($state) => filled($state)),
                     Forms\Components\Select::make('status')
                         ->label('Statut')
                         ->options([

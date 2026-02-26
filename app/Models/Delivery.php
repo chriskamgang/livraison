@@ -42,4 +42,48 @@ class Delivery extends Model
     public function scopeActive($query) {
         return $query->whereNotIn('status', ['delivered', 'failed']);
     }
+
+    // Envoyer des notifications au livreur lors du changement de statut
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updating(function ($delivery) {
+            if ($delivery->isDirty('status')) {
+                $oldStatus = $delivery->getOriginal('status');
+                $newStatus = $delivery->status;
+
+                // Messages de notification selon le statut de livraison
+                $messages = [
+                    'assigned'   => ['title' => 'Nouvelle commande assignée', 'body' => 'Une nouvelle commande vous a été assignée. Rendez-vous au restaurant pour la récupérer.'],
+                    'picked_up'  => ['title' => 'En route vers le client', 'body' => 'Vous avez récupéré la commande. Direction l\'adresse de livraison!'],
+                    'delivered'  => ['title' => 'Livraison terminée', 'body' => 'Félicitations! La livraison a été confirmée avec succès.'],
+                    'failed'     => ['title' => 'Livraison échouée', 'body' => 'La livraison n\'a pas pu être effectuée.'],
+                ];
+
+                if (isset($messages[$newStatus]) && $delivery->driver_id) {
+                    // Créer la notification dans la base de données
+                    \App\Models\Notification::create([
+                        'user_id' => $delivery->driver_id,
+                        'type'    => 'delivery',
+                        'title'   => $messages[$newStatus]['title'],
+                        'body'    => $messages[$newStatus]['body'],
+                        'data'    => json_encode(['delivery_id' => $delivery->id, 'order_id' => $delivery->order_id, 'status' => $newStatus]),
+                    ]);
+
+                    // Envoyer la notification push via Expo au livreur
+                    $driver = \App\Models\User::find($delivery->driver_id);
+                    if ($driver && $driver->push_token) {
+                        $pushService = new \App\Services\ExpoPushNotificationService();
+                        $pushService->sendPushNotification(
+                            $driver->push_token,
+                            $messages[$newStatus]['title'],
+                            $messages[$newStatus]['body'],
+                            ['delivery_id' => $delivery->id, 'order_id' => $delivery->order_id, 'status' => $newStatus]
+                        );
+                    }
+                }
+            }
+        });
+    }
 }
