@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\AccountDeletionController;
 
 // ==========================================
 // ROUTES PUBLIQUES
@@ -29,6 +30,12 @@ Route::prefix('restaurants')->group(function () {
 
 // Webhooks (publics)
 Route::post('/webhooks/freemopay', [PaymentController::class, 'freemopayWebhook']);
+
+// Account deletion (public endpoints)
+Route::prefix('account-deletion')->group(function () {
+    Route::post('/request', [AccountDeletionController::class, 'requestDeletion']);
+    Route::post('/status', [AccountDeletionController::class, 'checkStatus']);
+});
 
 // ==========================================
 // ROUTES PROTÉGÉES (Client + Livreur)
@@ -116,4 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Adresse par défaut
     Route::post('/profile/addresses/{id}/default', [ProfileController::class, 'setDefaultAddress']);
+
+    // Cancel account deletion request (authenticated users only)
+    Route::post('/account-deletion/cancel', [AccountDeletionController::class, 'cancelRequest']);
 });
