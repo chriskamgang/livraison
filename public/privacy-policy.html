@@ -3,126 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Politique de Confidentialité - Le Délice Burger</title>
+    <title>Politique de Confidentialité - ChillOut</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        h1 { color: #FF6B35; }
-        h2 { color: #444; margin-top: 30px; }
-        .update-date { color: #888; font-size: 14px; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #FF6B35;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #FF6B35;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #FF6B35;
+            font-size: 24px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        h3 {
+            color: #555;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .date {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .contact-info {
+            background: #f8f8f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #FF6B35;
+            margin: 20px 0;
+        }
+
+        a {
+            color: #FF6B35;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Politique de Confidentialité</h1>
-    <p class="update-date">Dernière mise à jour : <?php echo date('d/m/Y'); ?></p>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🍔</div>
+            <h1>Politique de Confidentialité</h1>
+            <p style="font-size: 18px; color: #666;">ChillOut - Livraison de repas</p>
+        </div>
 
-    <h2>1. Introduction</h2>
-    <p>Le Délice Burger ("nous", "notre", "nos") exploite l'application mobile Le Délice Burger (le "Service").</p>
-    <p>Cette page vous informe de nos politiques concernant la collecte, l'utilisation et la divulgation des données personnelles lorsque vous utilisez notre Service.</p>
+        <p class="date">Dernière mise à jour : 26 février 2026</p>
 
-    <h2>2. Données Collectées</h2>
-    <h3>2.1 Données de compte</h3>
-    <ul>
-        <li>Nom et prénom</li>
-        <li>Numéro de téléphone</li>
-        <li>Adresse email</li>
-        <li>Adresse de livraison</li>
-    </ul>
+        <div class="highlight">
+            <strong>Note importante :</strong> ESTUAIRE SERVICES SARL s'engage à protéger votre vie privée. Cette politique décrit comment nous collectons, utilisons et protégeons vos données personnelles lorsque vous utilisez l'application ChillOut.
+        </div>
 
-    <h3>2.2 Données de localisation</h3>
-    <p>Nous collectons votre position GPS uniquement lorsque vous passez une commande pour :</p>
-    <ul>
-        <li>Définir votre adresse de livraison</li>
-        <li>Calculer les frais de livraison</li>
-        <li>Optimiser le trajet du livreur</li>
-    </ul>
+        <h2>1. Informations que nous collectons</h2>
 
-    <h3>2.3 Données de commande</h3>
-    <ul>
-        <li>Historique de vos commandes</li>
-        <li>Préférences alimentaires</li>
-        <li>Méthode de paiement choisie</li>
-    </ul>
+        <h3>1.1 Informations fournies directement</h3>
+        <p>Lorsque vous créez un compte ChillOut, nous collectons :</p>
+        <ul>
+            <li><strong>Informations d'identification :</strong> Nom complet, adresse email, numéro de téléphone</li>
+            <li><strong>Informations de livraison :</strong> Adresse de livraison, ville, quartier</li>
+            <li><strong>Informations de paiement :</strong> Méthode de paiement préférée (les détails bancaires sont traités de manière sécurisée par nos prestataires)</li>
+        </ul>
 
-    <h2>3. Utilisation des Données</h2>
-    <p>Nous utilisons vos données pour :</p>
-    <ul>
-        <li>Traiter et livrer vos commandes</li>
-        <li>Vous contacter concernant votre commande</li>
-        <li>Améliorer notre service</li>
-        <li>Envoyer des promotions (avec votre consentement)</li>
-    </ul>
+        <h3>1.2 Informations collectées automatiquement</h3>
+        <ul>
+            <li><strong>Localisation :</strong> Avec votre autorisation, nous collectons votre position GPS pour faciliter la livraison</li>
+            <li><strong>Données d'utilisation :</strong> Historique des commandes, préférences culinaires, restaurants favoris</li>
+            <li><strong>Données techniques :</strong> Type d'appareil, système d'exploitation, version de l'application</li>
+        </ul>
 
-    <h2>4. Partage des Données</h2>
-    <p>Nous ne partageons vos données qu'avec :</p>
-    <ul>
-        <li><strong>Nos livreurs :</strong> nom, téléphone et adresse de livraison uniquement pendant la livraison active</li>
-        <li><strong>Prestataires de paiement :</strong> pour traiter vos paiements de manière sécurisée</li>
-    </ul>
-    <p><strong>Nous ne vendons JAMAIS vos données personnelles à des tiers.</strong></p>
+        <h2>2. Utilisation de vos données</h2>
 
-    <h2>5. Sécurité des Données</h2>
-    <p>Nous utilisons des mesures de sécurité techniques et organisationnelles pour protéger vos données :</p>
-    <ul>
-        <li>Chiffrement SSL/TLS pour toutes les communications</li>
-        <li>Stockage sécurisé dans des bases de données protégées</li>
-        <li>Accès limité aux employés autorisés uniquement</li>
-    </ul>
+        <p>Nous utilisons vos données personnelles pour :</p>
+        <ol>
+            <li><strong>Traiter vos commandes :</strong> Gérer les commandes, coordonner la livraison avec les restaurants et livreurs</li>
+            <li><strong>Améliorer nos services :</strong> Analyser l'utilisation de l'application pour optimiser l'expérience utilisateur</li>
+            <li><strong>Communication :</strong> Vous envoyer des notifications sur le statut de vos commandes, offres promotionnelles (avec votre consentement)</li>
+            <li><strong>Support client :</strong> Répondre à vos questions et résoudre les problèmes</li>
+            <li><strong>Sécurité :</strong> Détecter et prévenir les fraudes et abus</li>
+        </ol>
 
-    <h2>6. Vos Droits (RGPD)</h2>
-    <p>Conformément au RGPD, vous avez le droit de :</p>
-    <ul>
-        <li><strong>Accéder</strong> à vos données personnelles</li>
-        <li><strong>Rectifier</strong> vos données incorrectes</li>
-        <li><strong>Supprimer</strong> votre compte et vos données</li>
-        <li><strong>Exporter</strong> vos données dans un format lisible</li>
-        <li><strong>Retirer votre consentement</strong> à tout moment</li>
-    </ul>
+        <h2>3. Partage de vos données</h2>
 
-    <h2>7. Suppression de Compte</h2>
-    <p>Pour supprimer votre compte et toutes vos données :</p>
-    <ol>
-        <li>Ouvrez l'application Le Délice Burger</li>
-        <li>Allez dans Profil > Paramètres</li>
-        <li>Cliquez sur "Supprimer mon compte"</li>
-        <li>Ou envoyez un email à : <strong>support@ledeliceburger.cm</strong></li>
-    </ol>
-    <p>Vos données seront supprimées sous 30 jours.</p>
+        <p>Nous ne vendons jamais vos données personnelles. Nous partageons vos informations uniquement avec :</p>
+        <ul>
+            <li><strong>Restaurants partenaires :</strong> Pour préparer et livrer vos commandes</li>
+            <li><strong>Livreurs :</strong> Pour assurer la livraison (nom, adresse, numéro de téléphone)</li>
+            <li><strong>Prestataires de paiement :</strong> Orange Money, Wave, et autres services de paiement sécurisés</li>
+            <li><strong>Autorités légales :</strong> Si requis par la loi ou pour protéger nos droits</li>
+        </ul>
 
-    <h2>8. Conservation des Données</h2>
-    <ul>
-        <li>Données de compte : conservées tant que votre compte est actif</li>
-        <li>Historique de commandes : 3 ans (obligation légale comptable)</li>
-        <li>Données de localisation : supprimées après livraison</li>
-    </ul>
+        <h2>4. Protection de vos données</h2>
 
-    <h2>9. Cookies</h2>
-    <p>L'application utilise des cookies techniques essentiels pour :</p>
-    <ul>
-        <li>Maintenir votre session connectée</li>
-        <li>Mémoriser votre panier</li>
-    </ul>
+        <p>Nous mettons en œuvre des mesures de sécurité pour protéger vos données :</p>
+        <ul>
+            <li>Chiffrement SSL/TLS pour toutes les communications</li>
+            <li>Stockage sécurisé des données sur des serveurs protégés</li>
+            <li>Accès restreint aux données personnelles (uniquement le personnel autorisé)</li>
+            <li>Surveillance continue des systèmes pour détecter les intrusions</li>
+        </ul>
 
-    <h2>10. Modifications</h2>
-    <p>Nous pouvons modifier cette politique de confidentialité. Nous vous notifierons de tout changement important via l'application.</p>
+        <h2>5. Vos droits</h2>
 
-    <h2>11. Contact</h2>
-    <p>Pour toute question concernant cette politique :</p>
-    <ul>
-        <li>Email : <strong>support@ledeliceburger.cm</strong></li>
-        <li>Téléphone : <strong>+237 6XX XXX XXX</strong></li>
-        <li>Adresse : Évêché Macambou, Bafoussam, Cameroun</li>
-    </ul>
+        <p>Conformément aux réglementations en vigueur, vous disposez des droits suivants :</p>
+        <ul>
+            <li><strong>Droit d'accès :</strong> Obtenir une copie de vos données personnelles</li>
+            <li><strong>Droit de rectification :</strong> Corriger les données inexactes ou incomplètes</li>
+            <li><strong>Droit de suppression :</strong> Demander la suppression de votre compte et données associées</li>
+            <li><strong>Droit d'opposition :</strong> Refuser le traitement de certaines données (marketing par exemple)</li>
+            <li><strong>Droit à la portabilité :</strong> Récupérer vos données dans un format lisible</li>
+        </ul>
 
-    <hr style="margin-top: 50px;">
-    <p style="text-align: center; color: #888; font-size: 14px;">
-        © 2025 Le Délice Burger. Tous droits réservés.
-    </p>
+        <div class="highlight">
+            <strong>Pour exercer vos droits :</strong> Utilisez le formulaire de suppression de compte sur <a href="https://restaurant.iues-insambot.com/delete-account.html">cette page</a> ou contactez-nous directement.
+        </div>
+
+        <h2>6. Suppression de compte</h2>
+
+        <p>Vous pouvez demander la suppression de votre compte à tout moment. Voici ce qui se passe :</p>
+        <ol>
+            <li>Toutes vos données personnelles seront supprimées dans les 30 jours</li>
+            <li>Votre historique de commandes sera anonymisé (pour des raisons comptables)</li>
+            <li>Vous ne pourrez plus accéder à votre compte après validation de la demande</li>
+            <li>La suppression est irréversible</li>
+        </ol>
+        <p><strong>Lien de suppression :</strong> <a href="https://restaurant.iues-insambot.com/delete-account.html">Supprimer mon compte</a></p>
+
+        <h2>7. Cookies et technologies similaires</h2>
+
+        <p>L'application ChillOut utilise des technologies de suivi pour améliorer votre expérience :</p>
+        <ul>
+            <li><strong>Cookies de session :</strong> Pour maintenir votre connexion active</li>
+            <li><strong>Cookies de préférence :</strong> Pour mémoriser vos choix (langue, restaurants favoris)</li>
+            <li><strong>Analytics :</strong> Pour comprendre l'utilisation de l'application (données anonymisées)</li>
+        </ul>
+
+        <h2>8. Conservation des données</h2>
+
+        <p>Nous conservons vos données personnelles :</p>
+        <ul>
+            <li><strong>Pendant la durée de votre compte :</strong> Tant que vous utilisez ChillOut</li>
+            <li><strong>Après suppression :</strong> 30 jours maximum (sauf obligations légales)</li>
+            <li><strong>Données comptables :</strong> Jusqu'à 10 ans (conformément à la législation camerounaise)</li>
+        </ul>
+
+        <h2>9. Données des mineurs</h2>
+
+        <p>ChillOut est destiné aux personnes de 18 ans et plus. Nous ne collectons pas sciemment de données de mineurs. Si nous découvrons qu'un mineur a créé un compte, nous le supprimerons immédiatement.</p>
+
+        <h2>10. Modifications de cette politique</h2>
+
+        <p>Nous pouvons mettre à jour cette politique de confidentialité. Toute modification sera :</p>
+        <ul>
+            <li>Publiée sur cette page avec la nouvelle date de mise à jour</li>
+            <li>Notifiée dans l'application si les changements sont importants</li>
+            <li>Effective immédiatement après publication</li>
+        </ul>
+
+        <h2>11. Contact</h2>
+
+        <div class="contact-info">
+            <h3>ESTUAIRE SERVICES SARL</h3>
+            <p><strong>Adresse :</strong> Bafoussam, Cameroun</p>
+            <p><strong>Email :</strong> <a href="mailto:support@chillout.cm">support@chillout.cm</a></p>
+            <p><strong>Téléphone :</strong> <a href="tel:+237659339778">+237 659 339 778</a></p>
+            <p><strong>Site web :</strong> <a href="https://restaurant.iues-insambot.com">https://restaurant.iues-insambot.com</a></p>
+        </div>
+
+        <h2>12. Législation applicable</h2>
+
+        <p>Cette politique de confidentialité est régie par les lois du Cameroun. Tout litige relatif à l'utilisation de vos données personnelles sera soumis aux tribunaux compétents de Bafoussam, Cameroun.</p>
+
+        <div class="footer">
+            <p>© 2026 ESTUAIRE SERVICES SARL - Tous droits réservés</p>
+            <p>ChillOut - Votre service de livraison de repas à Bafoussam</p>
+        </div>
+    </div>
 </body>
 </html>
