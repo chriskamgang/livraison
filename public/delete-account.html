@@ -3,132 +3,367 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suppression de compte - MyINSAM Resto</title>
+    <title>Suppression de compte - ChillOut</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
             color: #333;
-            background-color: #f5f5f5;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
+
         .container {
+            max-width: 600px;
+            margin: 40px auto;
             background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        h1 {
-            color: #FF6B35;
-            margin-bottom: 10px;
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
         }
-        h2 {
-            color: #444;
-            margin-top: 30px;
-            border-bottom: 2px solid #FF6B35;
-            padding-bottom: 10px;
-        }
-        .contact-box {
-            background-color: #fff3e0;
-            border-left: 4px solid #FF6B35;
-            padding: 15px;
-            margin: 20px 0;
-        }
-        .warning {
-            background-color: #fff3e0;
-            border: 1px solid #ff9800;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        .email-link {
-            color: #FF6B35;
-            text-decoration: none;
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 32px;
             font-weight: bold;
         }
-        .email-link:hover {
-            text-decoration: underline;
+
+        h2 {
+            color: #444;
+            margin-bottom: 10px;
+            font-size: 24px;
         }
-        ul {
-            line-height: 1.8;
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
         }
-        .update-date {
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box strong {
+            color: #856404;
+        }
+
+        .info-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
             color: #888;
             font-size: 14px;
-            margin-bottom: 20px;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+
+        ul li {
+            margin-bottom: 8px;
+            color: #555;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Suppression de compte</h1>
-        <p class="update-date">MyINSAM Resto - Application de livraison de repas</p>
-
-        <h2>Comment supprimer votre compte</h2>
-        <p>
-            Nous respectons votre droit à la vie privée et vous permettons de supprimer votre compte
-            MyINSAM Resto à tout moment. La suppression de votre compte entraînera la suppression
-            définitive de toutes vos données personnelles.
-        </p>
-
-        <h2>Procédure de suppression</h2>
-        <p>Pour demander la suppression de votre compte, veuillez suivre ces étapes :</p>
-
-        <ol>
-            <li>Envoyez un email à notre équipe support</li>
-            <li>Indiquez votre adresse email ou numéro de téléphone associé au compte</li>
-            <li>Mentionnez "Demande de suppression de compte" dans l'objet</li>
-            <li>Notre équipe traitera votre demande dans un délai de 7 jours ouvrables</li>
-        </ol>
-
-        <div class="contact-box">
-            <strong>Contact support :</strong><br>
-            Email : <a href="mailto:support@myinsamresto.com" class="email-link">support@myinsamresto.com</a><br>
-            Téléphone : +237 6 XX XX XX XX
+        <div class="logo">
+            <h1>🍽️ ChillOut</h1>
         </div>
 
-        <h2>Données supprimées</h2>
-        <p>Lors de la suppression de votre compte, les données suivantes seront définitivement supprimées :</p>
-        <ul>
-            <li>Informations personnelles (nom, email, téléphone)</li>
-            <li>Adresses de livraison enregistrées</li>
-            <li>Historique de commandes</li>
-            <li>Préférences et favoris</li>
-            <li>Méthodes de paiement enregistrées</li>
-        </ul>
+        <h2>Suppression de compte</h2>
+        <p class="subtitle">Nous sommes désolés de vous voir partir</p>
 
-        <h2>Données conservées</h2>
-        <p>Conformément aux obligations légales et comptables, certaines données peuvent être conservées :</p>
-        <ul>
-            <li>Factures et transactions (conservées 10 ans pour obligations fiscales)</li>
-            <li>Données nécessaires pour la résolution de litiges en cours</li>
-        </ul>
-
-        <div class="warning">
-            <strong>⚠️ Attention :</strong> La suppression de votre compte est irréversible.
-            Vous ne pourrez plus accéder à votre historique de commandes ni récupérer vos données
-            après la suppression.
+        <div class="info-box">
+            <strong>ℹ️ Information importante :</strong><br>
+            La suppression de votre compte est définitive et irréversible. Toutes vos données seront supprimées dans un délai de 7 jours ouvrables.
         </div>
 
-        <h2>Alternative : Désactivation temporaire</h2>
-        <p>
-            Si vous souhaitez simplement faire une pause, vous pouvez désactiver temporairement
-            votre compte en nous contactant. Vos données seront conservées et vous pourrez
-            réactiver votre compte à tout moment.
-        </p>
+        <form id="deletionForm">
+            <div class="form-group">
+                <label for="identificationType">Identifiez-vous avec :</label>
+                <select id="identificationType" required>
+                    <option value="">-- Sélectionnez --</option>
+                    <option value="email">Adresse email</option>
+                    <option value="phone">Numéro de téléphone</option>
+                </select>
+            </div>
 
-        <h2>Questions ?</h2>
-        <p>
-            Pour toute question concernant la suppression de votre compte ou la gestion de vos données,
-            n'hésitez pas à nous contacter à
-            <a href="mailto:support@myinsamresto.com" class="email-link">support@myinsamresto.com</a>
-        </p>
+            <div class="form-group" id="emailGroup" style="display: none;">
+                <label for="email">Adresse email :</label>
+                <input type="email" id="email" placeholder="votre@email.com">
+            </div>
 
-        <p style="margin-top: 40px; color: #888; font-size: 14px;">
-            Dernière mise à jour : <?php echo date('d/m/Y'); ?>
-        </p>
+            <div class="form-group" id="phoneGroup" style="display: none;">
+                <label for="phone">Numéro de téléphone :</label>
+                <input type="tel" id="phone" placeholder="+237 6XX XXX XXX">
+            </div>
+
+            <div class="form-group">
+                <label for="reason">Raison de la suppression (optionnel) :</label>
+                <select id="reason">
+                    <option value="">-- Sélectionnez une raison --</option>
+                    <option value="no_longer_use">Je n'utilise plus l'application</option>
+                    <option value="privacy_concerns">Préoccupations sur la confidentialité</option>
+                    <option value="too_many_notifications">Trop de notifications</option>
+                    <option value="found_alternative">J'ai trouvé une alternative</option>
+                    <option value="technical_issues">Problèmes techniques</option>
+                    <option value="other">Autre</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="comments">Commentaires additionnels (optionnel) :</label>
+                <textarea id="comments" rows="4" placeholder="Dites-nous comment nous pouvons améliorer notre service..."></textarea>
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ Attention :</strong><br>
+                En supprimant votre compte, vous perdrez :
+                <ul>
+                    <li>Votre historique de commandes</li>
+                    <li>Vos adresses de livraison enregistrées</li>
+                    <li>Vos favoris et préférences</li>
+                    <li>Vos méthodes de paiement</li>
+                </ul>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                Confirmer la suppression
+            </button>
+        </form>
+
+        <div id="successMessage" class="success-message">
+            <strong>✅ Demande enregistrée avec succès !</strong><br>
+            Votre demande de suppression de compte a été enregistrée. Vous recevrez un email de confirmation à l'adresse associée à votre compte. Votre compte sera supprimé dans un délai de 7 jours ouvrables.
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <div class="footer">
+            <p>Des questions ? Contactez-nous à <a href="mailto:support@myinsam.cm">support@myinsam.cm</a></p>
+            <p style="margin-top: 10px;">
+                <a href="https://restaurant.iues-insambot.com/privacy-policy.html">Politique de confidentialité</a>
+            </p>
+        </div>
     </div>
+
+    <script>
+        const form = document.getElementById('deletionForm');
+        const identificationType = document.getElementById('identificationType');
+        const emailGroup = document.getElementById('emailGroup');
+        const phoneGroup = document.getElementById('phoneGroup');
+        const emailInput = document.getElementById('email');
+        const phoneInput = document.getElementById('phone');
+        const submitBtn = document.getElementById('submitBtn');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Show/hide identification fields based on selection
+        identificationType.addEventListener('change', function() {
+            const value = this.value;
+
+            if (value === 'email') {
+                emailGroup.style.display = 'block';
+                phoneGroup.style.display = 'none';
+                emailInput.required = true;
+                phoneInput.required = false;
+                phoneInput.value = '';
+            } else if (value === 'phone') {
+                emailGroup.style.display = 'none';
+                phoneGroup.style.display = 'block';
+                emailInput.required = false;
+                phoneInput.required = true;
+                emailInput.value = '';
+            } else {
+                emailGroup.style.display = 'none';
+                phoneGroup.style.display = 'none';
+                emailInput.required = false;
+                phoneInput.required = false;
+            }
+        });
+
+        // Handle form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Hide previous messages
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Envoi en cours...';
+
+            // Prepare data
+            const data = {
+                reason: document.getElementById('reason').value,
+                additional_comments: document.getElementById('comments').value
+            };
+
+            if (identificationType.value === 'email') {
+                data.email = emailInput.value;
+            } else if (identificationType.value === 'phone') {
+                data.phone = phoneInput.value;
+            }
+
+            try {
+                // Send request to API
+                const response = await fetch('https://restaurant.iues-insambot.com/api/account-deletion/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Success
+                    successMessage.style.display = 'block';
+                    form.style.display = 'none';
+
+                    // Scroll to success message
+                    successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    // Error from API
+                    errorMessage.textContent = result.message || 'Une erreur est survenue. Veuillez réessayer.';
+                    errorMessage.style.display = 'block';
+
+                    // Re-enable button
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Confirmer la suppression';
+                }
+            } catch (error) {
+                // Network or other error
+                errorMessage.textContent = 'Erreur de connexion. Veuillez vérifier votre connexion internet et réessayer.';
+                errorMessage.style.display = 'block';
+
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Confirmer la suppression';
+            }
+        });
+    </script>
 </body>
 </html>
