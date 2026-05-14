@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MenuItem extends Model
 {
     protected $fillable = [
-        'restaurant_id', 'menu_category_id', 'name', 'description', 'image',
+        'restaurant_id', 'menu_category_id', 'name', 'description', 'image', 'images',
         'price', 'discount_price', 'options',
         'is_available', 'is_featured', 'preparation_time',
         'calories', 'is_vegetarian', 'is_spicy', 'sort_order',
@@ -15,6 +15,7 @@ class MenuItem extends Model
 
     protected $casts = [
         'options' => 'array',
+        'images' => 'array',
         'is_available' => 'boolean',
         'is_featured' => 'boolean',
         'is_vegetarian' => 'boolean',
@@ -25,6 +26,7 @@ class MenuItem extends Model
     public function restaurant() { return $this->belongsTo(Restaurant::class); }
     public function category() { return $this->belongsTo(MenuCategory::class, 'menu_category_id'); }
     public function orderItems() { return $this->hasMany(OrderItem::class); }
+    public function optionGroups() { return $this->belongsToMany(OptionGroup::class, 'menu_item_option_group')->withPivot('sort_order')->orderByPivot('sort_order'); }
 
     public function getEffectivePriceAttribute(): float
     {

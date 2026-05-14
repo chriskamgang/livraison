@@ -11,6 +11,11 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets;
+use App\Filament\Widgets\StatsOverview;
+use App\Filament\Widgets\OrdersChart;
+use App\Filament\Widgets\RevenueChart;
+use App\Filament\Widgets\LatestOrders;
+use App\Filament\Widgets\PaymentMethodsChart;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -27,7 +32,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('Restaurant Delivery')
+            ->brandName('ChillOut Admin')
+            ->favicon(asset('favicon.ico'))
             ->colors([
                 'primary'   => Color::Orange,
                 'gray'      => Color::Slate,
@@ -36,11 +42,14 @@ class AdminPanelProvider extends PanelProvider
                 'warning'   => Color::Amber,
                 'danger'    => Color::Red,
             ])
+            ->sidebarCollapsibleOnDesktop()
+            ->databaseNotifications()
             ->navigationGroups([
+                'Restaurants',
                 'Menu',
                 'Commandes',
                 'Utilisateurs',
-                'Paramètres',
+                'Parametres',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -49,8 +58,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+                StatsOverview::class,
+                OrdersChart::class,
+                RevenueChart::class,
+                PaymentMethodsChart::class,
+                LatestOrders::class,
             ])
             ->middleware([
                 EncryptCookies::class,

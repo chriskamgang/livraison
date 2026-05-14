@@ -86,7 +86,7 @@ class PaymentController extends Controller
             'payment' => [
                 'id' => $payment->id,
                 'reference' => $result['data']['reference'],
-                'status' => $result['data']['status'],
+                'status' => 'pending',
                 'amount' => $order->total,
             ],
         ]);
@@ -134,8 +134,11 @@ class PaymentController extends Controller
                         'provider_response' => json_encode($result['data']),
                     ]);
 
-                    // Mettre à jour la commande
-                    $payment->order->update(['payment_status' => 'paid']);
+                    // Mettre à jour la commande : payée + confirmée (en attente de préparation)
+                    $payment->order->update([
+                        'payment_status' => 'paid',
+                        'status' => 'confirmed',
+                    ]);
                 } elseif ($status === 'FAILED') {
                     $payment->update([
                         'status' => 'failed',
@@ -195,7 +198,7 @@ class PaymentController extends Controller
                 'provider_response' => json_encode($data),
             ]);
 
-            // Mettre à jour la commande
+            // Mettre à jour la commande : payée + confirmée (en attente de préparation)
             $payment->order->update([
                 'payment_status' => 'paid',
                 'status' => 'confirmed',

@@ -3,38 +3,72 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RestaurantResource\Pages;
+use App\Filament\Traits\HasRestaurantScope;
 use App\Models\Restaurant;
 use App\Models\RestaurantCategory;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class RestaurantResource extends Resource
 {
+    use HasRestaurantScope;
+
     protected static ?string $model = Restaurant::class;
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
-    protected static ?string $navigationGroup = 'Paramètres';
-    protected static ?string $navigationLabel = 'Mon Restaurant';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = 'Restaurants';
+    protected static ?string $navigationLabel = 'Restaurants';
+    protected static ?int $navigationSort = 1;
 
-    // Un seul restaurant — on cache la création multiple
-    public static function canCreate(): bool { return !\App\Models\Restaurant::exists(); }
+    public static function getNavigationLabel(): string
+    {
+        return static::isSuperAdmin() ? 'Restaurants' : 'Mon Restaurant';
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return static::isSuperAdmin() ? 'Restaurants' : 'Parametres';
+    }
+
+    // Restaurant admin ne peut pas créer de restaurant
+    public static function canCreate(): bool
+    {
+        return static::isSuperAdmin();
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $restaurantId = static::getRestaurantId();
+
+        if ($restaurantId) {
+            $query->where('id', $restaurantId);
+        }
+
+        return $query;
+    }
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Informations générales')
+            Forms\Components\Section::make('Informations generales')
                 ->schema([
                     Forms\Components\Select::make('category_id')
-                        ->label('Catégorie')
+                        ->label('Categorie')
                         ->options(RestaurantCategory::pluck('name', 'id'))
                         ->required(),
                     Forms\Components\TextInput::make('name')
                         ->label('Nom')
                         ->required()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(fn ($state, Forms\Set $set) => $set('slug', Str::slug($state))),
                     Forms\Components\TextInput::make('slug')
                         ->label('Slug')
                         ->required()
@@ -43,12 +77,24 @@ class RestaurantResource extends Resource
                         ->label('Description')
                         ->columnSpanFull(),
                     Forms\Components\TextInput::make('phone')
-                        ->label('Téléphone')
+                        ->label('Telephone')
                         ->tel()
                         ->required(),
                     Forms\Components\TextInput::make('email')
                         ->label('Email')
                         ->email(),
+                    Forms\Components\FileUpload::make('logo')
+                        ->label('Logo')
+                        ->image()
+                        ->directory('restaurants/logos')
+                        ->imageResizeTargetWidth('200')
+                        ->imageResizeTargetHeight('200'),
+                    Forms\Components\FileUpload::make('cover_image')
+                        ->label('Photo de couverture')
+                        ->image()
+                        ->directory('restaurants/covers')
+                        ->imageResizeTargetWidth('1200')
+                        ->imageResizeTargetHeight('600'),
                 ])->columns(2),
 
             Forms\Components\Section::make('Localisation')
@@ -59,7 +105,7 @@ class RestaurantResource extends Resource
                         ->columnSpanFull(),
                     Forms\Components\TextInput::make('city')
                         ->label('Ville')
-                        ->default('Douala'),
+                        ->default('Bafoussam'),
                     Forms\Components\TextInput::make('latitude')
                         ->label('Latitude')
                         ->numeric(),
@@ -92,13 +138,26 @@ class RestaurantResource extends Resource
                 ->schema([
                     Forms\Components\Toggle::make('is_active')
                         ->label('Actif')
-                        ->default(true),
+                        ->default(true)
+                        ->visible(fn () => static::isSuperAdmin()),
                     Forms\Components\Toggle::make('is_featured')
-                        ->label('En vedette'),
+                        ->label('En vedette')
+                        ->visible(fn () => static::isSuperAdmin()),
                     Forms\Components\Toggle::make('is_open')
                         ->label('Ouvert maintenant')
                         ->default(true),
                 ])->columns(3),
+
+            // Section admin restaurant — visible seulement pour super admin
+            Forms\Components\Section::make('Administrateur du restaurant')
+                ->schema([
+                    Forms\Components\Select::make('user_id')
+                        ->label('Proprietaire')
+                        ->options(User::where('role', 'restaurant_admin')->pluck('name', 'id'))
+                        ->searchable()
+                        ->helperText('Selectionnez le proprietaire ou creez-en un depuis Utilisateurs > Admins Restaurant'),
+                ])
+                ->visible(fn () => static::isSuperAdmin()),
         ]);
     }
 
@@ -106,8 +165,8 @@ class RestaurantResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('cover_image')
-                    ->label('Photo')
+                Tables\Columns\ImageColumn::make('logo')
+                    ->label('Logo')
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nom')
@@ -115,19 +174,23 @@ class RestaurantResource extends Resource
                     ->sortable()
                     ->weight('bold'),
                 Tables\Columns\TextColumn::make('category.name')
-                    ->label('Catégorie')
+                    ->label('Categorie')
                     ->badge()
                     ->color('info'),
                 Tables\Columns\TextColumn::make('city')
                     ->label('Ville')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('owner.name')
+                    ->label('Proprietaire')
+                    ->visible(fn () => static::isSuperAdmin())
+                    ->default('Non assigne'),
                 Tables\Columns\TextColumn::make('delivery_fee')
                     ->label('Livraison')
                     ->formatStateUsing(fn ($state) => number_format($state, 0, ',', ' ') . ' XAF')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('rating')
                     ->label('Note')
-                    ->formatStateUsing(fn ($state) => '⭐ ' . number_format($state, 1))
+                    ->formatStateUsing(fn ($state) => number_format($state, 1) . ' / 5')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
@@ -137,20 +200,22 @@ class RestaurantResource extends Resource
                     ->boolean(),
                 Tables\Columns\IconColumn::make('is_featured')
                     ->label('Vedette')
-                    ->boolean(),
+                    ->boolean()
+                    ->visible(fn () => static::isSuperAdmin()),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')->label('Actif'),
                 Tables\Filters\TernaryFilter::make('is_open')->label('Ouvert'),
-                Tables\Filters\TernaryFilter::make('is_featured')->label('En vedette'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => static::isSuperAdmin()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => static::isSuperAdmin()),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

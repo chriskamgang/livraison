@@ -91,19 +91,23 @@ class OrderController extends Controller
         $deliveryFee = ($couponId && \App\Models\Coupon::find($couponId)?->type === 'free_delivery') ? 0 : $restaurant->delivery_fee;
         $total       = $subtotal + $deliveryFee - $discountAmount;
 
+        $isCash = $validated['payment_method'] === 'cash';
+
         // Créer la commande
+        // Cash: confirmée directement (en attente de préparation)
+        // Mobile Money: pending jusqu'au paiement confirmé
         $order = \App\Models\Order::create([
             'user_id'              => $request->user()->id,
             'restaurant_id'        => $restaurant->id,
             'address_id'           => $address->id,
             'coupon_id'            => $couponId,
-            'status'               => 'pending',
+            'status'               => $isCash ? 'confirmed' : 'pending',
             'subtotal'             => $subtotal,
             'delivery_fee'         => $deliveryFee,
             'discount_amount'      => $discountAmount,
             'total'                => $total,
             'payment_method'       => $validated['payment_method'],
-            'payment_status'       => 'pending',
+            'payment_status'       => $isCash ? 'cash_on_delivery' : 'pending',
             'special_instructions' => $validated['special_instructions'] ?? null,
             'estimated_delivery_at'=> now()->addMinutes($restaurant->delivery_time_max),
         ]);

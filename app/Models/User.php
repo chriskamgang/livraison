@@ -16,7 +16,7 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'name', 'first_name', 'last_name',
         'email', 'phone', 'avatar',
-        'role', 'status',
+        'role', 'status', 'restaurant_id',
         'vehicle_type', 'vehicle_number', 'license_number',
         'id_card_front', 'id_card_back',
         'is_online', 'is_verified',
@@ -53,15 +53,19 @@ class User extends Authenticatable implements FilamentUser
     public function ratings() { return $this->hasMany(Rating::class); }
     public function driverRatings() { return $this->hasMany(Rating::class, 'driver_id'); }
     public function notifications_custom() { return $this->hasMany(CustomNotification::class); }
+    public function restaurant() { return $this->belongsTo(Restaurant::class); }
 
     // Helpers
     public function isDriver(): bool { return $this->role === 'driver'; }
     public function isClient(): bool { return $this->role === 'client'; }
     public function isAdmin(): bool { return in_array($this->role, ['admin', 'super_admin']); }
+    public function isRestaurantAdmin(): bool { return $this->role === 'restaurant_admin'; }
+    public function isSuperAdmin(): bool { return in_array($this->role, ['admin', 'super_admin']); }
 
-    // Filament: seuls les admins peuvent accéder au panel
+    // Filament: admins et restaurant_admins peuvent accéder au panel
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->isAdmin() && $this->status === 'active';
+        return in_array($this->role, ['admin', 'super_admin', 'restaurant_admin'])
+            && $this->status === 'active';
     }
 }

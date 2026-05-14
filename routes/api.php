@@ -126,4 +126,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Cancel account deletion request (authenticated users only)
     Route::post('/account-deletion/cancel', [AccountDeletionController::class, 'cancelRequest']);
+
+    // Suppression de compte (exigé par Apple/Google)
+    Route::delete('/account', [ProfileController::class, 'deleteAccount']);
 });

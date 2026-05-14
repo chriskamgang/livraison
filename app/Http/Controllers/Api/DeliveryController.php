@@ -17,11 +17,13 @@ class DeliveryController extends Controller
             return response()->json(['message' => 'Accès réservé aux livreurs.'], 403);
         }
 
-        $user->update(['is_online' => !$user->is_online]);
+        // Si le client envoie une valeur explicite, l'utiliser; sinon toggle
+        $isOnline = $request->has('is_online') ? (bool) $request->is_online : !$user->is_online;
+        $user->update(['is_online' => $isOnline]);
 
         return response()->json([
-            'message'   => $user->is_online ? 'Vous êtes maintenant en ligne.' : 'Vous êtes hors ligne.',
-            'is_online' => $user->is_online,
+            'message'   => $isOnline ? 'Vous êtes maintenant en ligne.' : 'Vous êtes hors ligne.',
+            'is_online' => $isOnline,
         ]);
     }
 
@@ -74,7 +76,7 @@ class DeliveryController extends Controller
             return response()->json(['message' => 'Vous êtes hors ligne.'], 403);
         }
 
-        $orders = \App\Models\Order::with(['restaurant:id,name,logo,address,latitude,longitude', 'delivery', 'user:id,name,phone'])
+        $orders = \App\Models\Order::with(['restaurant:id,name,logo,address,latitude,longitude', 'delivery', 'user:id,name,phone', 'address'])
             ->whereHas('delivery', fn($q) => $q->where('status', 'searching'))
             ->where('status', 'ready')
             ->latest()

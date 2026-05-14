@@ -163,4 +163,24 @@ class ProfileController extends Controller
 
         return response()->json(['message' => 'Token push supprimé.']);
     }
+
+    // DELETE /api/account — Suppression de compte (exigé par Apple/Google)
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+
+        // Révoquer tous les tokens
+        $user->tokens()->delete();
+
+        // Anonymiser les données personnelles
+        $user->update([
+            'name'       => 'Compte supprimé',
+            'email'      => 'deleted_' . $user->id . '@deleted.com',
+            'phone'      => null,
+            'push_token' => null,
+            'status'     => 'deleted',
+        ]);
+
+        return response()->json(['message' => 'Votre compte a été supprimé avec succès.']);
+    }
 }

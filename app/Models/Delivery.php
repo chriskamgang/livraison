@@ -63,7 +63,7 @@ class Delivery extends Model
 
                 if (isset($messages[$newStatus]) && $delivery->driver_id) {
                     // Créer la notification dans la base de données
-                    \App\Models\Notification::create([
+                    \App\Models\CustomNotification::create([
                         'user_id' => $delivery->driver_id,
                         'type'    => 'delivery',
                         'title'   => $messages[$newStatus]['title'],

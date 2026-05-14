@@ -67,7 +67,7 @@ class Order extends Model
 
                 if (isset($messages[$newStatus])) {
                     // Créer la notification dans la base de données
-                    \App\Models\Notification::create([
+                    \App\Models\CustomNotification::create([
                         'user_id' => $order->user_id,
                         'type'    => 'order',
                         'title'   => $messages[$newStatus]['title'],

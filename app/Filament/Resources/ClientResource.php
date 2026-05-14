@@ -20,6 +20,13 @@ class ClientResource extends Resource
     protected static ?int $navigationSort = 1;
     protected static ?string $slug = 'clients';
 
+    // Visible seulement pour les super admins
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+        return $user && in_array($user->role, ['admin', 'super_admin']);
+    }
+
     // Filtre automatique : seulement les clients
     public static function getEloquentQuery(): Builder
     {

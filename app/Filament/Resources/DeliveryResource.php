@@ -22,6 +22,12 @@ class DeliveryResource extends Resource
     protected static ?string $navigationLabel = 'Livraisons';
     protected static ?int $navigationSort = 2;
 
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+        return $user && in_array($user->role, ['admin', 'super_admin']);
+    }
+
     public static function form(Form $form): Form
     {
         return $form

@@ -20,6 +20,12 @@ class DriverResource extends Resource
     protected static ?int $navigationSort = 2;
     protected static ?string $slug = 'drivers';
 
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+        return $user && in_array($user->role, ['admin', 'super_admin']);
+    }
+
     // Filtre automatique : seulement les livreurs
     public static function getEloquentQuery(): Builder
     {

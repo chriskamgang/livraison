@@ -10,7 +10,7 @@ class Restaurant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'category_id', 'name', 'slug', 'description',
+        'user_id', 'category_id', 'name', 'slug', 'description',
         'logo', 'cover_image', 'phone', 'email',
         'address', 'latitude', 'longitude', 'city',
         'opening_hours', 'delivery_fee', 'delivery_time_min',
@@ -29,6 +29,8 @@ class Restaurant extends Model
     ];
 
     // Relations
+    public function owner() { return $this->belongsTo(User::class, 'user_id'); }
+    public function admins() { return $this->hasMany(User::class, 'restaurant_id'); }
     public function category() { return $this->belongsTo(RestaurantCategory::class); }
     public function menuCategories() { return $this->hasMany(MenuCategory::class); }
     public function menuItems() { return $this->hasMany(MenuItem::class); }

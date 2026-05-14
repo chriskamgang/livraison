@@ -71,7 +71,12 @@ class RestaurantController extends Controller
         $menu = \App\Models\MenuCategory::where('restaurant_id', $id)
             ->active()
             ->with(['items' => function ($q) {
-                $q->available()->orderBy('sort_order');
+                $q->available()->orderBy('sort_order')
+                  ->with(['optionGroups' => function ($og) {
+                      $og->with(['items' => function ($oi) {
+                          $oi->where('is_available', true)->orderBy('sort_order');
+                      }]);
+                  }]);
             }])
             ->orderBy('sort_order')
             ->get();

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MenuCategoryResource\Pages;
+use App\Filament\Traits\HasRestaurantScope;
 use App\Models\MenuCategory;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,41 +14,51 @@ use Illuminate\Database\Eloquent\Builder;
 
 class MenuCategoryResource extends Resource
 {
+    use HasRestaurantScope;
+
     protected static ?string $model = MenuCategory::class;
     protected static ?string $navigationIcon = 'heroicon-o-tag';
     protected static ?string $navigationGroup = 'Menu';
-    protected static ?string $navigationLabel = 'Catégories';
+    protected static ?string $navigationLabel = 'Categories';
     protected static ?int $navigationSort = 1;
 
-    // Filtre automatique sur le restaurant principal
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
-            ->where('restaurant_id', \App\Models\Restaurant::value('id'));
+        $query = parent::getEloquentQuery();
+        $restaurantId = static::getRestaurantId();
+
+        if ($restaurantId) {
+            $query->where('restaurant_id', $restaurantId);
+        }
+
+        return $query;
     }
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Catégorie de produits')
+            Forms\Components\Section::make('Categorie de produits')
                 ->schema([
                     Forms\Components\Hidden::make('restaurant_id')
-                        ->default(fn () => \App\Models\Restaurant::value('id')),
+                        ->default(fn () => static::getRestaurantId() ?? \App\Models\Restaurant::first()?->id),
+                    Forms\Components\Select::make('restaurant_id')
+                        ->label('Restaurant')
+                        ->relationship('restaurant', 'name')
+                        ->required()
+                        ->visible(fn () => static::isSuperAdmin()),
                     Forms\Components\TextInput::make('name')
-                        ->label('Nom de la catégorie')
+                        ->label('Nom de la categorie')
                         ->placeholder('Ex: Burgers, Boissons, Desserts...')
                         ->required()
                         ->maxLength(255),
                     Forms\Components\TextInput::make('sort_order')
                         ->label('Ordre d\'affichage')
                         ->numeric()
-                        ->default(0)
-                        ->helperText('0 = affiché en premier'),
+                        ->default(0),
                     Forms\Components\Toggle::make('is_active')
-                        ->label('Catégorie visible')
-                        ->default(true)
-                        ->helperText('Désactivé = masqué sur l\'app'),
-                ])->columns(3),
+                        ->label('Categorie visible')
+                        ->default(true),
+                ])->columns(2),
         ]);
     }
 
@@ -55,8 +66,13 @@ class MenuCategoryResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('restaurant.name')
+                    ->label('Restaurant')
+                    ->badge()
+                    ->color('warning')
+                    ->visible(fn () => static::isSuperAdmin()),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Catégorie')
+                    ->label('Categorie')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
@@ -71,11 +87,6 @@ class MenuCategoryResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Visible')
                     ->boolean(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Créée le')
-                    ->dateTime('d/m/Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->reorderable('sort_order')
             ->filters([
@@ -93,10 +104,7 @@ class MenuCategoryResource extends Resource
             ->defaultSort('sort_order');
     }
 
-    public static function getRelations(): array
-    {
-        return [];
-    }
+    public static function getRelations(): array { return []; }
 
     public static function getPages(): array
     {
