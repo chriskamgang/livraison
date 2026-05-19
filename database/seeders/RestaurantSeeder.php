@@ -3,27 +3,29 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 use App\Models\Restaurant;
 use App\Models\RestaurantCategory;
+use App\Models\MenuCategory;
+use App\Models\MenuItem;
 
 class RestaurantSeeder extends Seeder
 {
     public function run(): void
     {
         // Categories de restaurants
-        $catRestaurant = RestaurantCategory::create(['name' => 'Restaurant', 'slug' => 'restaurant', 'icon' => 'restaurant', 'sort_order' => 0]);
-        $catFastFood   = RestaurantCategory::create(['name' => 'Fast Food', 'slug' => 'fast-food', 'icon' => 'fast-food', 'sort_order' => 1]);
-        $catBraise     = RestaurantCategory::create(['name' => 'Braiserie', 'slug' => 'braiserie', 'icon' => 'local-fire-department', 'sort_order' => 2]);
-        $catJus        = RestaurantCategory::create(['name' => 'Jus & Smoothies', 'slug' => 'jus-smoothies', 'icon' => 'local-cafe', 'sort_order' => 3]);
-        $catPizza      = RestaurantCategory::create(['name' => 'Pizzeria', 'slug' => 'pizzeria', 'icon' => 'local-pizza', 'sort_order' => 4]);
+        $catRestaurant = RestaurantCategory::firstOrCreate(['slug' => 'restaurant'], ['name' => 'Restaurant', 'icon' => 'restaurant', 'sort_order' => 0]);
+        $catFastFood   = RestaurantCategory::firstOrCreate(['slug' => 'fast-food'], ['name' => 'Fast Food', 'icon' => 'fast-food', 'sort_order' => 1]);
+        $catBraise     = RestaurantCategory::firstOrCreate(['slug' => 'braiserie'], ['name' => 'Braiserie', 'icon' => 'local-fire-department', 'sort_order' => 2]);
+        $catJus        = RestaurantCategory::firstOrCreate(['slug' => 'jus-smoothies'], ['name' => 'Jus & Smoothies', 'icon' => 'local-cafe', 'sort_order' => 3]);
+        $catPizza      = RestaurantCategory::firstOrCreate(['slug' => 'pizzeria'], ['name' => 'Pizzeria', 'icon' => 'local-pizza', 'sort_order' => 4]);
 
         // ============================================================
         // RESTAURANT 1 — Le Bon Gout
         // ============================================================
-        $r1 = Restaurant::create([
+        $r1 = Restaurant::firstOrCreate(['slug' => 'le-bon-gout'], [
             'category_id' => $catRestaurant->id,
             'name' => 'Le Bon Goût',
-            'slug' => 'le-bon-gout',
             'description' => 'Cuisine camerounaise authentique, plats mijotés avec amour.',
             'logo' => 'restaurants/logos/le-bon-gout.jpg',
             'cover_image' => 'restaurants/covers/le-bon-gout.jpg',
@@ -72,10 +74,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 2 — Chez Mama Africa
         // ============================================================
-        $r2 = Restaurant::create([
+        $r2 = Restaurant::firstOrCreate(['slug' => 'chez-mama-africa'], [
             'category_id' => $catRestaurant->id,
             'name' => 'Chez Mama Africa',
-            'slug' => 'chez-mama-africa',
             'description' => 'Les saveurs de l\'Afrique dans votre assiette. Spécialités de l\'Ouest.',
             'logo' => 'restaurants/logos/chez-mama-africa.jpg',
             'cover_image' => 'restaurants/covers/chez-mama-africa.jpg',
@@ -123,10 +124,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 3 — La Braise Dorée
         // ============================================================
-        $r3 = Restaurant::create([
+        $r3 = Restaurant::firstOrCreate(['slug' => 'la-braise-doree'], [
             'category_id' => $catBraise->id,
             'name' => 'La Braise Dorée',
-            'slug' => 'la-braise-doree',
             'description' => 'Spécialiste du poisson et poulet braisé depuis 2010.',
             'logo' => 'restaurants/logos/la-braise-doree.jpg',
             'cover_image' => 'restaurants/covers/la-braise-doree.jpg',
@@ -174,10 +174,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 4 — Saveurs du Cameroun
         // ============================================================
-        $r4 = Restaurant::create([
+        $r4 = Restaurant::firstOrCreate(['slug' => 'saveurs-du-cameroun'], [
             'category_id' => $catRestaurant->id,
             'name' => 'Saveurs du Cameroun',
-            'slug' => 'saveurs-du-cameroun',
             'description' => 'Un voyage culinaire à travers les 10 régions du Cameroun.',
             'logo' => 'restaurants/logos/saveurs-du-cameroun.jpg',
             'cover_image' => 'restaurants/covers/saveurs-du-cameroun.jpg',
@@ -225,10 +224,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 5 — Le Maquis Central
         // ============================================================
-        $r5 = Restaurant::create([
+        $r5 = Restaurant::firstOrCreate(['slug' => 'le-maquis-central'], [
             'category_id' => $catBraise->id,
             'name' => 'Le Maquis Central',
-            'slug' => 'le-maquis-central',
             'description' => 'Ambiance maquis, bonne musique et bonne bouffe !',
             'logo' => 'restaurants/logos/le-maquis-central.jpg',
             'cover_image' => 'restaurants/covers/le-maquis-central.jpg',
@@ -276,10 +274,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 6 — Pizza Express Baf
         // ============================================================
-        $r6 = Restaurant::create([
+        $r6 = Restaurant::firstOrCreate(['slug' => 'pizza-express-baf'], [
             'category_id' => $catPizza->id,
             'name' => 'Pizza Express Baf',
-            'slug' => 'pizza-express-baf',
             'description' => 'Pizzas artisanales cuites au feu de bois.',
             'logo' => 'restaurants/logos/pizza-express-baf.jpg',
             'cover_image' => 'restaurants/covers/pizza-express-baf.jpg',
@@ -327,10 +324,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 7 — Le Coin des Jus
         // ============================================================
-        $r7 = Restaurant::create([
+        $r7 = Restaurant::firstOrCreate(['slug' => 'le-coin-des-jus'], [
             'category_id' => $catJus->id,
             'name' => 'Le Coin des Jus',
-            'slug' => 'le-coin-des-jus',
             'description' => 'Jus naturels, smoothies et salades fraîches.',
             'logo' => 'restaurants/logos/le-coin-des-jus.jpg',
             'cover_image' => 'restaurants/covers/le-coin-des-jus.jpg',
@@ -379,10 +375,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 8 — Grill House 237
         // ============================================================
-        $r8 = Restaurant::create([
+        $r8 = Restaurant::firstOrCreate(['slug' => 'grill-house-237'], [
             'category_id' => $catFastFood->id,
             'name' => 'Grill House 237',
-            'slug' => 'grill-house-237',
             'description' => 'Burgers, wraps et grillades rapides. Le fast-food camerounais !',
             'logo' => 'restaurants/logos/grill-house-237.jpg',
             'cover_image' => 'restaurants/covers/grill-house-237.jpg',
@@ -430,10 +425,9 @@ class RestaurantSeeder extends Seeder
         // ============================================================
         // RESTAURANT 9 — La Table Royale
         // ============================================================
-        $r9 = Restaurant::create([
+        $r9 = Restaurant::firstOrCreate(['slug' => 'la-table-royale'], [
             'category_id' => $catRestaurant->id,
             'name' => 'La Table Royale',
-            'slug' => 'la-table-royale',
             'description' => 'Gastronomie camerounaise haut de gamme pour les grandes occasions.',
             'logo' => 'restaurants/logos/la-table-royale.jpg',
             'cover_image' => 'restaurants/covers/la-table-royale.jpg',
@@ -488,28 +482,33 @@ class RestaurantSeeder extends Seeder
 
     /**
      * Helper pour créer les catégories et articles d'un restaurant.
+     * Utilise firstOrCreate pour ne pas dupliquer.
      */
     private function seedMenu(Restaurant $restaurant, array $menu): void
     {
         foreach ($menu as $i => $catData) {
-            $cat = $restaurant->menuCategories()->create([
-                'name'       => $catData['category'],
-                'slug'       => \Illuminate\Support\Str::slug($catData['category']),
-                'is_active'  => true,
-                'sort_order' => $i,
-            ]);
+            $cat = MenuCategory::firstOrCreate(
+                ['restaurant_id' => $restaurant->id, 'name' => $catData['category']],
+                [
+                    'slug'       => Str::slug($catData['category']),
+                    'is_active'  => true,
+                    'sort_order' => $i,
+                ]
+            );
 
             foreach ($catData['items'] as $j => $item) {
-                $cat->items()->create([
-                    'restaurant_id'    => $restaurant->id,
-                    'name'             => $item['name'],
-                    'description'      => $item['description'] ?? '',
-                    'price'            => $item['price'],
-                    'image'            => $item['image'] ?? null,
-                    'is_available'     => true,
-                    'preparation_time' => 15,
-                    'sort_order'       => $j,
-                ]);
+                MenuItem::firstOrCreate(
+                    ['menu_category_id' => $cat->id, 'name' => $item['name']],
+                    [
+                        'restaurant_id'    => $restaurant->id,
+                        'description'      => $item['description'] ?? '',
+                        'price'            => $item['price'],
+                        'image'            => $item['image'] ?? null,
+                        'is_available'     => true,
+                        'preparation_time' => 15,
+                        'sort_order'       => $j,
+                    ]
+                );
             }
         }
     }
