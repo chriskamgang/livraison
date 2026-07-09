@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\AccountDeletionController;
+use App\Http\Controllers\Api\MarketOrderController;
 
 // ==========================================
 // ROUTES PUBLIQUES
@@ -17,6 +18,8 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register/driver', [AuthController::class, 'registerDriver']);
+    Route::post('/google', [AuthController::class, 'googleLogin']);
+    Route::post('/apple', [AuthController::class, 'appleLogin']);
 });
 
 // Restaurants publics (pas besoin d'auth pour parcourir)
@@ -86,6 +89,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/read-all', [ProfileController::class, 'markAllNotificationsRead']);
     });
 
+    // ==========================================
+    // MARCHÉ (Courses)
+    // ==========================================
+    Route::prefix('market-orders')->group(function () {
+        Route::get('/', [MarketOrderController::class, 'index']);
+        Route::post('/', [MarketOrderController::class, 'store']);
+        Route::get('/{id}', [MarketOrderController::class, 'show']);
+        Route::post('/{id}/cancel', [MarketOrderController::class, 'cancel']);
+        Route::get('/{id}/track', [MarketOrderController::class, 'track']);
+        Route::post('/{id}/validate-photos', [MarketOrderController::class, 'validatePhotos']);
+    });
+
     // Position du livreur en temps réel pour le client
     Route::get('/deliveries/{id}/driver-location', [DeliveryController::class, 'getDriverLocation']);
 
@@ -119,6 +134,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Détail d'une commande pour le livreur
         Route::get('/orders/{id}', [DeliveryController::class, 'orderDetail']);
+
+        // Marché
+        Route::get('/market-orders/available', [MarketOrderController::class, 'availableForDriver']);
+        Route::post('/market-orders/{id}/accept', [MarketOrderController::class, 'acceptForDriver']);
+        Route::post('/market-orders/{id}/update-status', [MarketOrderController::class, 'updateStatusForDriver']);
+        Route::post('/market-orders/{id}/upload-photos', [MarketOrderController::class, 'uploadPhotos']);
     });
 
     // Adresse par défaut

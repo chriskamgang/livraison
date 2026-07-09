@@ -11,7 +11,7 @@ class Restaurant extends Model
 
     protected $fillable = [
         'user_id', 'category_id', 'name', 'slug', 'description',
-        'logo', 'cover_image', 'phone', 'email',
+        'logo', 'cover_image', 'photos', 'phone', 'email',
         'address', 'latitude', 'longitude', 'city',
         'opening_hours', 'delivery_fee', 'delivery_time_min',
         'delivery_time_max', 'minimum_order',
@@ -21,6 +21,7 @@ class Restaurant extends Model
 
     protected $casts = [
         'opening_hours' => 'array',
+        'photos' => 'array',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'is_open' => 'boolean',

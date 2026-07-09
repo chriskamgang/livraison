@@ -46,4 +46,8 @@ return [
         'token' => env('ULTRAMSG_TOKEN'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID', '1070472586568-njjtn28ulh40e32gd5hslhdckd3a20p0.apps.googleusercontent.com'),
+    ],
+
 ];
