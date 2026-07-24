@@ -28,7 +28,7 @@ Route::get('/delete-account', function () {
 });
 
 // Impersonation: super admin se connecte en tant que propriétaire d'un restaurant
-Route::get('/admin/restaurants/{restaurant}/impersonate', function (\App\Models\Restaurant $restaurant) {
+Route::get('/impersonate/restaurant/{restaurant}', function (\App\Models\Restaurant $restaurant) {
     $currentUser = \Illuminate\Support\Facades\Auth::user();
 
     if (!$currentUser || !in_array($currentUser->role, ['admin', 'super_admin'])) {
@@ -37,11 +37,7 @@ Route::get('/admin/restaurants/{restaurant}/impersonate', function (\App\Models\
 
     $owner = $restaurant->owner;
     if (!$owner) {
-        return redirect()->back()->with('notification', [
-            'title' => 'Erreur',
-            'body' => 'Ce restaurant n\'a pas de propriétaire assigné.',
-            'status' => 'danger',
-        ]);
+        return redirect('/admin/restaurants')->with('error', 'Ce restaurant n\'a pas de propriétaire assigné.');
     }
 
     // Sauvegarder l'ID du super admin pour pouvoir revenir
@@ -53,7 +49,7 @@ Route::get('/admin/restaurants/{restaurant}/impersonate', function (\App\Models\
 })->middleware(['web', 'auth'])->name('admin.restaurants.impersonate');
 
 // Revenir au compte super admin
-Route::get('/admin/impersonate/leave', function () {
+Route::get('/impersonate/leave', function () {
     $impersonatorId = session('impersonator_id');
 
     if (!$impersonatorId) {
