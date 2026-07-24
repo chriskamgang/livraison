@@ -41,9 +41,15 @@ Route::get('/impersonate/restaurant/{restaurant}', function (\App\Models\Restaur
     }
 
     // Sauvegarder l'ID du super admin pour pouvoir revenir
-    session(['impersonator_id' => $currentUser->id]);
+    $impersonatorId = $currentUser->id;
 
     \Illuminate\Support\Facades\Auth::login($owner);
+
+    // Régénérer la session pour que AuthenticateSession accepte le nouveau user
+    request()->session()->regenerate();
+
+    // Re-stocker l'impersonator_id après régénération (la régénération vide la session)
+    session(['impersonator_id' => $impersonatorId]);
 
     return redirect('/admin');
 })->middleware(['web', 'auth'])->name('admin.restaurants.impersonate');
@@ -59,9 +65,8 @@ Route::get('/impersonate/leave', function () {
     $admin = \App\Models\User::find($impersonatorId);
     if ($admin) {
         \Illuminate\Support\Facades\Auth::login($admin);
+        request()->session()->regenerate();
     }
-
-    session()->forget('impersonator_id');
 
     return redirect('/admin/restaurants');
 })->middleware(['web', 'auth'])->name('admin.impersonate.leave');
