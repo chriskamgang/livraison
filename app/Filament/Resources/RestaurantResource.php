@@ -208,6 +208,26 @@ class RestaurantResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_open')->label('Ouvert'),
             ])
             ->actions([
+                Tables\Actions\Action::make('impersonate')
+                    ->label('Connexion')
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->color('success')
+                    ->visible(fn () => static::isSuperAdmin())
+                    ->action(function (Restaurant $record) {
+                        if (!$record->owner) {
+                            Notification::make()
+                                ->title('Erreur')
+                                ->body('Ce restaurant n\'a pas de propriétaire assigné.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        session(['impersonator_id' => auth()->id()]);
+                        auth()->login($record->owner);
+
+                        return redirect('/admin');
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn () => static::isSuperAdmin()),

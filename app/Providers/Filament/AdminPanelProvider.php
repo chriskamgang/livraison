@@ -21,6 +21,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -77,6 +78,19 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->renderHook(
+                'panels::body.start',
+                fn () => session('impersonator_id')
+                    ? new HtmlString('
+                        <div style="background: #f59e0b; color: #000; padding: 8px 16px; text-align: center; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 12px;">
+                            <span>Vous êtes connecté en tant que : ' . e(auth()->user()?->name) . '</span>
+                            <a href="' . route('admin.impersonate.leave') . '" style="background: #000; color: #fff; padding: 4px 12px; border-radius: 6px; text-decoration: none; font-size: 14px;">
+                                Revenir à mon compte
+                            </a>
+                        </div>
+                    ')
+                    : ''
+            );
     }
 }
