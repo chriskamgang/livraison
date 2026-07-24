@@ -40,16 +40,22 @@ Route::get('/impersonate/restaurant/{restaurant}', function (\App\Models\Restaur
         return redirect('/admin/restaurants')->with('error', 'Ce restaurant n\'a pas de propriétaire assigné.');
     }
 
-    // Sauvegarder l'ID du super admin pour pouvoir revenir
     $impersonatorId = $currentUser->id;
 
+    // Invalider la session actuelle et en créer une nouvelle
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
+    // Connecter le propriétaire du restaurant
     \Illuminate\Support\Facades\Auth::login($owner);
 
-    // Régénérer la session pour que AuthenticateSession accepte le nouveau user
-    request()->session()->regenerate();
+    // Stocker le password hash manuellement pour AuthenticateSession
+    request()->session()->put('password_hash_web', $owner->getAuthPassword());
 
-    // Re-stocker l'impersonator_id après régénération (la régénération vide la session)
-    session(['impersonator_id' => $impersonatorId]);
+    // Sauvegarder l'impersonator
+    request()->session()->put('impersonator_id', $impersonatorId);
+
+    request()->session()->save();
 
     return redirect('/admin');
 })->middleware(['web', 'auth'])->name('admin.restaurants.impersonate');
@@ -63,10 +69,16 @@ Route::get('/impersonate/leave', function () {
     }
 
     $admin = \App\Models\User::find($impersonatorId);
-    if ($admin) {
-        \Illuminate\Support\Facades\Auth::login($admin);
-        request()->session()->regenerate();
+    if (!$admin) {
+        return redirect('/admin');
     }
+
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
+    \Illuminate\Support\Facades\Auth::login($admin);
+    request()->session()->put('password_hash_web', $admin->getAuthPassword());
+    request()->session()->save();
 
     return redirect('/admin/restaurants');
 })->middleware(['web', 'auth'])->name('admin.impersonate.leave');
