@@ -75,8 +75,8 @@ class AuthController extends Controller
             return response()->json(['message' => 'Compte suspendu. Contactez le support.'], 403);
         }
 
-        // Révoquer les anciens tokens
-        $user->tokens()->delete();
+        // On garde les sessions des autres appareils : un utilisateur connecté
+        // reste connecté jusqu'à ce qu'il se déconnecte lui-même.
 
         $token = $user->createToken($user->role . '-token')->plainTextToken;
 
@@ -92,10 +92,17 @@ class AuthController extends Controller
         $request->validate(['id_token' => 'required|string']);
 
         // Verify the Google ID token
-        $client = new \Google_Client(['client_id' => config('services.google.client_id')]);
-        $payload = $client->verifyIdToken($request->id_token);
+        // Le jeton peut venir de l'identifiant web, iOS ou Android selon l'appareil :
+        // on vérifie la signature Google, puis que l'audience est l'un de nos identifiants.
+        $client = new \Google_Client();
+        try {
+            $payload = $client->verifyIdToken($request->id_token);
+        } catch (\Throwable $e) {
+            $payload = null; // jeton mal formé ou expiré
+        }
+        $allowed = config('services.google.client_ids', []);
 
-        if (!$payload) {
+        if (!$payload || !in_array($payload['aud'] ?? null, $allowed, true)) {
             return response()->json(['message' => 'Token Google invalide'], 401);
         }
 
@@ -128,7 +135,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Compte suspendu. Contactez le support.'], 403);
         }
 
-        $user->tokens()->delete();
         $token = $user->createToken('client-token')->plainTextToken;
 
         return response()->json([
@@ -142,27 +148,25 @@ class AuthController extends Controller
     {
         $request->validate([
             'identity_token' => 'required|string',
-            'full_name'      => 'nullable|array',
+            'full_name'      => 'nullable', // texte ("Jean Dupont") ou {givenName, familyName}
             'email'          => 'nullable|email',
         ]);
 
-        // Decode Apple identity token (JWT)
-        $tokenParts = explode('.', $request->identity_token);
-        if (count($tokenParts) !== 3) {
-            return response()->json(['message' => 'Token Apple invalide'], 401);
-        }
-
-        $payload = json_decode(base64_decode(strtr($tokenParts[1], '-_', '+/')), true);
+        // Vérifier que le jeton vient vraiment d'Apple (signature, émetteur, app)
+        $payload = $this->verifyAppleToken($request->identity_token);
         if (!$payload || !isset($payload['sub'])) {
             return response()->json(['message' => 'Token Apple invalide'], 401);
         }
 
         $appleId = $payload['sub'];
-        $email = $request->email ?? $payload['email'] ?? null;
+        // Seul l'email signé par Apple sert à retrouver un compte existant
+        $email = $payload['email'] ?? null;
         $fullName = $request->full_name;
         $name = 'Utilisateur Apple';
-        if ($fullName) {
+        if (is_array($fullName)) {
             $name = trim(($fullName['givenName'] ?? '') . ' ' . ($fullName['familyName'] ?? '')) ?: $name;
+        } elseif (is_string($fullName) && trim($fullName) !== '') {
+            $name = mb_substr(trim($fullName), 0, 255);
         }
 
         $user = \App\Models\User::where('apple_id', $appleId)->first();
@@ -189,7 +193,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Compte suspendu. Contactez le support.'], 403);
         }
 
-        $user->tokens()->delete();
         $token = $user->createToken('client-token')->plainTextToken;
 
         return response()->json([
@@ -197,6 +200,42 @@ class AuthController extends Controller
             'user'    => $user,
             'token'   => $token,
         ]);
+    }
+
+    /**
+     * Vérifie un identity token Apple avec les clés publiques d'Apple.
+     * Retourne le contenu du jeton, ou null s'il est invalide.
+     */
+    private function verifyAppleToken(string $jwt): ?array
+    {
+        $fetchKeys = fn () => \Illuminate\Support\Facades\Http::timeout(10)
+            ->get('https://appleid.apple.com/auth/keys')->throw()->json();
+
+        foreach ([false, true] as $refresh) {
+            try {
+                if ($refresh) {
+                    \Illuminate\Support\Facades\Cache::forget('apple_jwks'); // Apple a peut-être changé de clé
+                }
+                $keys = \Illuminate\Support\Facades\Cache::remember('apple_jwks', 43200, $fetchKeys);
+                $payload = (array) \Firebase\JWT\JWT::decode($jwt, \Firebase\JWT\JWK::parseKeySet($keys));
+            } catch (\Throwable $e) {
+                if ($refresh) {
+                    \Illuminate\Support\Facades\Log::warning('Apple token rejeté', ['error' => $e->getMessage()]);
+                    return null;
+                }
+                continue;
+            }
+
+            if (($payload['iss'] ?? null) !== 'https://appleid.apple.com') {
+                return null;
+            }
+            if (!in_array($payload['aud'] ?? null, config('services.apple.client_ids', []), true)) {
+                return null;
+            }
+            return $payload;
+        }
+
+        return null;
     }
 
     public function logout(Request $request)

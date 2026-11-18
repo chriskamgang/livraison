@@ -18,12 +18,12 @@ class User extends Authenticatable implements FilamentUser
         'email', 'phone', 'avatar',
         'google_id', 'apple_id',
         'role', 'status', 'restaurant_id',
-        'vehicle_type', 'vehicle_number', 'license_number',
+        'vehicle_type', 'vehicle_number', 'license_number', 'driver_type',
         'id_card_front', 'id_card_back',
         'is_online', 'is_verified',
         'current_latitude', 'current_longitude',
         'rating', 'ratings_count', 'wallet_balance',
-        'fcm_token', 'password',
+        'fcm_token', 'push_token', 'password',
     ];
 
     protected $hidden = [

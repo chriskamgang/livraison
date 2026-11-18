@@ -23,6 +23,9 @@ class RestaurantController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
+        // Restaurants mis en avant par l'admin toujours en premier
+        self::pinnedFirst($query);
+
         // Tri
         $sort = $request->get('sort', 'rating');
         match ($sort) {
@@ -31,7 +34,29 @@ class RestaurantController extends Controller
             default         => $query->orderByDesc('rating'),
         };
 
-        return response()->json($query->paginate(15));
+        return response()->json(self::markPinned($query->paginate(15)));
+    }
+
+    // IDs à afficher en tête de liste (env PINNED_RESTAURANT_IDS, ex. « 23 »)
+    private static function pinnedIds(): array
+    {
+        return array_values(array_filter(array_map('intval', config('services.pinned_restaurant_ids', []))));
+    }
+
+    private static function pinnedFirst($query): void
+    {
+        $ids = self::pinnedIds();
+        if ($ids) {
+            $query->orderByRaw('CASE WHEN restaurants.id IN (' . implode(',', $ids) . ') THEN 0 ELSE 1 END');
+        }
+    }
+
+    // Ajoute is_pinned pour que l'app garde ces restaurants en tête (tri par distance)
+    private static function markPinned($restaurants)
+    {
+        $ids = self::pinnedIds();
+        $restaurants->each(fn ($r) => $r->setAttribute('is_pinned', in_array($r->id, $ids, true)));
+        return $restaurants;
     }
 
     // GET /api/restaurants/featured
@@ -39,11 +64,12 @@ class RestaurantController extends Controller
     {
         $restaurants = \App\Models\Restaurant::with('category')
             ->active()->open()->featured()
+            ->tap(fn ($q) => self::pinnedFirst($q))
             ->orderByDesc('rating')
             ->take(10)
             ->get();
 
-        return response()->json($restaurants);
+        return response()->json(self::markPinned($restaurants));
     }
 
     // GET /api/restaurants/categories

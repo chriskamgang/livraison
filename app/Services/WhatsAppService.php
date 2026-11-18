@@ -7,200 +7,279 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsAppService
 {
-    protected $instanceId;
-    protected $token;
-    protected $baseUrl;
+    private string $serviceUrl;
+    private string $secret;
 
     public function __construct()
     {
-        $this->instanceId = config('services.ultramsg.instance_id');
-        $this->token = config('services.ultramsg.token');
-        $this->baseUrl = "https://api.ultramsg.com/{$this->instanceId}";
+        $this->serviceUrl = config('services.whatsapp.url', 'http://localhost:3500');
+        $this->secret     = config('services.whatsapp.secret', 'estuaire-wa-secret');
     }
 
-    /**
-     * Envoyer un message WhatsApp
-     *
-     * @param string $to Numéro de téléphone avec format international (ex: +237690000000)
-     * @param string $body Contenu du message
-     * @return array
-     */
     public function sendMessage(string $to, string $body): array
     {
         try {
-            // Nettoyer le numéro de téléphone (enlever espaces et tirets)
-            $to = preg_replace('/[\s\-\(\)]/', '', $to);
+            $number = preg_replace('/\D/', '', $to);
+            if (strlen($number) === 9) $number = '237' . $number;
 
-            // S'assurer que le + est présent
-            if (!str_starts_with($to, '+')) {
-                $to = '+' . $to;
+            $response = Http::timeout(10)
+                ->withHeaders(['x-wa-secret' => $this->secret])
+                ->post("{$this->serviceUrl}/send", [
+                    'to'      => $number,
+                    'message' => $body,
+                ]);
+
+            if (!$response->successful()) {
+                Log::error('WhatsApp message failed', ['to' => $number, 'error' => $response->body()]);
             }
 
-            $response = Http::asForm()->post("{$this->baseUrl}/messages/chat", [
-                'token' => $this->token,
-                'to' => $to,
-                'body' => $body,
-            ]);
-
-            $result = $response->json();
-
-            if ($response->successful()) {
-                Log::info('WhatsApp message sent', [
-                    'to' => $to,
-                    'response' => $result
-                ]);
-            } else {
-                Log::error('WhatsApp message failed', [
-                    'to' => $to,
-                    'error' => $result
-                ]);
-            }
-
-            return [
-                'success' => $response->successful(),
-                'data' => $result
-            ];
+            return ['success' => $response->successful(), 'data' => $response->json()];
 
         } catch (\Exception $e) {
-            Log::error('WhatsApp service error', [
-                'message' => $e->getMessage(),
-                'to' => $to
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+            Log::error('WhatsApp service error', ['message' => $e->getMessage(), 'to' => $to]);
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     /**
-     * Notification : Commande reçue (Client)
+     * 🔔 Nouvelle commande → Restaurant
      */
-    public function notifyOrderReceived($order, $customer)
+    public function notifyRestaurantNewOrder($order, $customer): bool
     {
         $restaurant = $order->restaurant;
+        if (empty($restaurant->phone)) return false;
 
-        $message = "🎉 *Commande reçue avec succès !*\n\n";
-        $message .= "Bonjour {$customer->name},\n\n";
-        $message .= "Votre commande #{$order->id} a bien été enregistrée.\n\n";
-        $message .= "📍 *Restaurant :* {$restaurant->name}\n";
-        $message .= "💰 *Montant :* {$order->total} FCFA\n";
-        $message .= "🚚 *Livraison :* {$order->delivery_address}\n\n";
-        $message .= "Nous préparons votre commande avec soin !\n\n";
-        $message .= "Merci de votre confiance 🙏\n";
-        $message .= "_MyINSAM Resto_";
+        $method = $order->payment_method === 'cash' ? '💵 Paiement à la livraison' : '📱 Mobile Money';
 
-        return $this->sendMessage($customer->phone, $message);
-    }
-
-    /**
-     * Notification : Livraison assignée (Livreur)
-     */
-    public function notifyDeliveryAssigned($order, $driver)
-    {
-        $restaurant = $order->restaurant;
-        $customer = $order->user;
-
-        $message = "🛵 *Nouvelle livraison assignée !*\n\n";
-        $message .= "Bonjour {$driver->name},\n\n";
-        $message .= "Commande *#{$order->id}*\n\n";
-        $message .= "📍 *Restaurant :* {$restaurant->name}\n";
-        $message .= "📍 *Adresse :* {$restaurant->address}\n\n";
+        $message  = "🔔 *Nouvelle commande !*\n\n";
+        $message .= "Commande *#{$order->order_number}*\n\n";
         $message .= "👤 *Client :* {$customer->name}\n";
-        $message .= "📞 *Tél :* {$customer->phone}\n";
-        $message .= "🚚 *Livraison :* {$order->delivery_address}\n\n";
-        $message .= "💰 *Montant :* {$order->total} FCFA\n\n";
-        $message .= "Bonne livraison ! 🚀\n";
-        $message .= "_Express INSAM_";
+        $message .= "📞 *Tél :* {$customer->phone}\n\n";
+        $message .= "📦 *Articles :*\n";
 
-        return $this->sendMessage($driver->phone, $message);
+        foreach ($order->items as $item) {
+            $message .= "  • {$item->quantity}x {$item->item_name} — " . number_format($item->subtotal, 0, ',', ' ') . " XAF\n";
+        }
+
+        $message .= "\n💰 *Total :* " . number_format($order->total, 0, ',', ' ') . " XAF\n";
+        $message .= "💳 *Paiement :* {$method}\n";
+        $deliveryAddr = $order->address->address ?? $order->delivery?->delivery_address ?? 'N/A';
+        $message .= "📍 *Livraison :* {$deliveryAddr}\n\n";
+        $message .= "Merci de préparer la commande rapidement ! 🍽️\n\n";
+        $message .= "_Estuaire Eat_ 🛵";
+
+        return (bool) $this->sendMessage($restaurant->phone, $message)['success'];
     }
 
     /**
-     * Notification : Livreur en route (Client)
+     * ✅ Commande reçue → Client
      */
-    public function notifyDriverEnRoute($order, $driver, $customer)
+    public function notifyOrderReceived($order, $customer): bool
     {
-        $message = "🚗 *Votre commande est en route !*\n\n";
-        $message .= "Bonjour {$customer->name},\n\n";
-        $message .= "Bonne nouvelle ! Votre commande #{$order->id} a été récupérée et est en cours de livraison.\n\n";
+        if (empty($customer->phone)) return false;
+
+        $restaurant = $order->restaurant;
+        $method     = $order->payment_method === 'cash_on_delivery' ? '💵 Paiement à la livraison' : '📱 Mobile Money';
+
+        $message  = "🎉 *Commande confirmée !*\n\n";
+        $message .= "Bonjour *{$customer->name}* 👋\n\n";
+        $message .= "Votre commande *#{$order->order_number}* a bien été reçue.\n\n";
+        $message .= "🏪 *Restaurant :* {$restaurant->name}\n";
+        $message .= "💰 *Total :* " . number_format($order->total, 0, ',', ' ') . " XAF\n";
+        $message .= "📦 *Paiement :* {$method}\n";
+        $message .= "📍 *Livraison :* {$order->delivery_address}\n\n";
+        $message .= "Nous préparons votre commande avec soin ! ⏳\n\n";
+        $message .= "_Estuaire Eat — Livraison rapide à Bafoussam_ 🛵";
+
+        return (bool) $this->sendMessage($customer->phone, $message)['success'];
+    }
+
+    /**
+     * 👨‍🍳 En préparation → Client
+     */
+    public function notifyOrderPreparing($order, $customer): bool
+    {
+        if (empty($customer->phone)) return false;
+
+        $restaurant = $order->restaurant;
+
+        $message  = "👨‍🍳 *En cours de préparation...*\n\n";
+        $message .= "Bonjour *{$customer->name}*,\n\n";
+        $message .= "Votre commande *#{$order->order_number}* est en cours de préparation chez *{$restaurant->name}*.\n\n";
+        $message .= "⏱️ Temps estimé : *{$restaurant->delivery_time_min}–{$restaurant->delivery_time_max} min*\n\n";
+        $message .= "On vous tient informé ! 😊\n\n";
+        $message .= "_Estuaire Eat_ 🛵";
+
+        return (bool) $this->sendMessage($customer->phone, $message)['success'];
+    }
+
+    /**
+     * ✅ Commande prête → Client
+     */
+    public function notifyOrderReady($order, $customer): bool
+    {
+        if (empty($customer->phone)) return false;
+
+        $message  = "✅ *Commande prête !*\n\n";
+        $message .= "Bonjour *{$customer->name}*,\n\n";
+        $message .= "Votre commande *#{$order->order_number}* est prête ! 🎉\n\n";
+        $message .= "Un livreur va la récupérer et l'apporter chez vous très bientôt. 🛵\n\n";
+        $message .= "_Estuaire Eat_ 🛵";
+
+        return (bool) $this->sendMessage($customer->phone, $message)['success'];
+    }
+
+    /**
+     * 🛵 Livraison assignée → Livreur
+     */
+    public function notifyDeliveryAssigned($order, $driver): bool
+    {
+        if (empty($driver->phone)) return false;
+
+        $restaurant = $order->restaurant;
+        $customer   = $order->user;
+
+        $message  = "🛵 *Nouvelle livraison !*\n\n";
+        $message .= "Bonjour *{$driver->name}* 👋\n\n";
+        $message .= "Commande *#{$order->order_number}*\n\n";
+        $message .= "🏪 *Récupérer chez :* {$restaurant->name}\n";
+        $message .= "📍 *Adresse resto :* {$restaurant->address}\n\n";
+        $message .= "👤 *Client :* {$customer->name}\n";
+        $message .= "📞 *Tél client :* {$customer->phone}\n";
+        $message .= "📍 *Livrer à :* {$order->delivery_address}\n\n";
+        $message .= "💰 *Montant :* " . number_format($order->total, 0, ',', ' ') . " XAF\n";
+        $message .= "💵 *Paiement :* " . ($order->payment_method === 'cash_on_delivery' ? 'À encaisser à la livraison' : 'Déjà payé') . "\n\n";
+        $message .= "Bonne livraison ! 🚀\n\n";
+        $message .= "_Estuaire Eat_";
+
+        return (bool) $this->sendMessage($driver->phone, $message)['success'];
+    }
+
+    /**
+     * 🚗 Livreur en route → Client
+     */
+    public function notifyDriverEnRoute($order, $driver, $customer): bool
+    {
+        if (empty($customer->phone)) return false;
+
+        $message  = "🚗 *Votre commande est en route !*\n\n";
+        $message .= "Bonjour *{$customer->name}*,\n\n";
+        $message .= "Votre commande *#{$order->order_number}* est en cours de livraison.\n\n";
         $message .= "🛵 *Livreur :* {$driver->name}\n";
         $message .= "📞 *Contact :* {$driver->phone}\n\n";
-        $message .= "⏱️ *Temps estimé :* 15-25 minutes\n\n";
         $message .= "Préparez-vous à recevoir votre commande ! 📦\n\n";
-        $message .= "Bon appétit ! 😋\n";
-        $message .= "_MyINSAM Resto_";
+        $message .= "Bon appétit ! 😋\n\n";
+        $message .= "_Estuaire Eat_ 🛵";
 
-        return $this->sendMessage($customer->phone, $message);
+        return (bool) $this->sendMessage($customer->phone, $message)['success'];
     }
 
     /**
-     * Notification : Commande livrée (Client)
+     * ✅ Commande livrée → Client
      */
-    public function notifyOrderDelivered($order, $customer)
+    public function notifyOrderDelivered($order, $customer): bool
     {
-        $message = "✅ *Commande livrée !*\n\n";
-        $message .= "Bonjour {$customer->name},\n\n";
-        $message .= "Votre commande #{$order->id} a été livrée avec succès.\n\n";
-        $message .= "Merci d'avoir commandé chez nous !\n\n";
-        $message .= "N'hésitez pas à nous donner votre avis. 🌟\n\n";
-        $message .= "À très bientôt ! 🙏\n";
-        $message .= "_MyINSAM Resto_";
+        if (empty($customer->phone)) return false;
 
-        return $this->sendMessage($customer->phone, $message);
+        $message  = "✅ *Commande livrée !*\n\n";
+        $message .= "Bonjour *{$customer->name}*,\n\n";
+        $message .= "Votre commande *#{$order->order_number}* a été livrée avec succès. 🎉\n\n";
+        $message .= "Bon appétit ! 😋\n\n";
+        $message .= "Vous pouvez noter votre expérience directement dans l'application Estuaire Eat. ⭐\n\n";
+        $message .= "Merci de votre confiance et à très bientôt ! 🙏\n\n";
+        $message .= "_Estuaire Eat_ 🛵";
+
+        return (bool) $this->sendMessage($customer->phone, $message)['success'];
     }
 
     /**
-     * Notification : Commande annulée (Client)
+     * ❌ Commande annulée → Client
      */
-    public function notifyOrderCancelled($order, $customer, $reason = '')
+    public function notifyOrderCancelled($order, $customer, $reason = ''): bool
     {
-        $message = "❌ *Commande annulée*\n\n";
-        $message .= "Bonjour {$customer->name},\n\n";
-        $message .= "Nous sommes désolés, votre commande #{$order->id} a été annulée.\n\n";
+        if (empty($customer->phone)) return false;
+
+        $message  = "❌ *Commande annulée*\n\n";
+        $message .= "Bonjour *{$customer->name}*,\n\n";
+        $message .= "Nous sommes désolés, votre commande *#{$order->order_number}* a été annulée.\n\n";
 
         if ($reason) {
             $message .= "📋 *Raison :* {$reason}\n\n";
         }
 
-        $message .= "Pour toute question, contactez-nous.\n\n";
+        $message .= "Pour toute question, contactez-nous sur WhatsApp.\n\n";
         $message .= "Cordialement,\n";
-        $message .= "_MyINSAM Resto_";
+        $message .= "_Estuaire Eat_ 🛵";
 
-        return $this->sendMessage($customer->phone, $message);
+        return (bool) $this->sendMessage($customer->phone, $message)['success'];
     }
 
     /**
-     * Notification : Commande en préparation (Client)
+     * Call Center : nouvelle commande
      */
-    public function notifyOrderPreparing($order, $customer)
+    public function notifyCallCenterNewOrder($order, $customer): void
     {
+        $phones = config('services.call_center.phones', []);
+        if (empty($phones)) return;
+
         $restaurant = $order->restaurant;
+        $method = $order->payment_method === 'cash' ? 'Paiement a la livraison' : 'Mobile Money';
+        $cookingTime = $restaurant->delivery_time_min . '-' . $restaurant->delivery_time_max . ' min';
 
-        $message = "👨‍🍳 *Commande en préparation*\n\n";
-        $message .= "Bonjour {$customer->name},\n\n";
-        $message .= "Votre commande #{$order->id} est maintenant en cours de préparation chez {$restaurant->name}.\n\n";
-        $message .= "⏱️ *Temps estimé :* 20-30 minutes\n\n";
-        $message .= "Nous vous tiendrons informé de l'avancement.\n\n";
-        $message .= "Merci de votre patience ! 😊\n";
-        $message .= "_MyINSAM Resto_";
+        $message  = "** NOUVELLE COMMANDE **\n\n";
+        $message .= "Commande *#{$order->order_number}*\n\n";
+        $message .= "Restaurant : *{$restaurant->name}*\n";
+        $message .= "Tel resto : {$restaurant->phone}\n\n";
+        $message .= "Client : *{$customer->name}*\n";
+        $message .= "Tel client : {$customer->phone}\n\n";
+        $message .= "Articles :\n";
 
-        return $this->sendMessage($customer->phone, $message);
+        if ($order->relationLoaded('items')) {
+            foreach ($order->items as $item) {
+                $message .= "  - {$item->quantity}x {$item->item_name}\n";
+            }
+        }
+
+        $message .= "\nTotal : " . number_format($order->total, 0, ',', ' ') . " XAF\n";
+        $message .= "Paiement : {$method}\n";
+        $message .= "Temps de cuisson estime : {$cookingTime}\n\n";
+        $message .= "ACTION : Appelez le restaurant pour confirmer la prise en charge.\n\n";
+        $message .= "_Estuaire Eat - Call Center_";
+
+        foreach ($phones as $phone) {
+            $this->sendMessage($phone, $message);
+        }
     }
 
     /**
-     * Notification : Commande prête (Client)
+     * Call Center : commande prete, appeler le livreur
      */
-    public function notifyOrderReady($order, $customer)
+    public function notifyCallCenterOrderReady($order): void
     {
-        $message = "✅ *Commande prête !*\n\n";
-        $message .= "Bonjour {$customer->name},\n\n";
-        $message .= "Votre commande #{$order->id} est prête !\n\n";
-        $message .= "Un livreur va bientôt la récupérer pour vous l'apporter.\n\n";
-        $message .= "À tout de suite ! 🚀\n";
-        $message .= "_MyINSAM Resto_";
+        $phones = config('services.call_center.phones', []);
+        if (empty($phones)) return;
 
-        return $this->sendMessage($customer->phone, $message);
+        $restaurant = $order->restaurant;
+        $driver = $order->delivery?->driver;
+
+        $message  = "** COMMANDE PRETE **\n\n";
+        $message .= "Commande *#{$order->order_number}*\n\n";
+        $message .= "Restaurant : *{$restaurant->name}*\n";
+        $message .= "Tel resto : {$restaurant->phone}\n\n";
+
+        if ($driver) {
+            $message .= "Livreur : *{$driver->name}*\n";
+            $message .= "Tel livreur : {$driver->phone}\n\n";
+            $message .= "ACTION : Appelez le livreur pour qu'il recupere la commande.\n";
+        } else {
+            $message .= "Aucun livreur assigne.\n";
+            $message .= "ACTION : Assignez un livreur ou attendez qu'un livreur accepte.\n";
+        }
+
+        $message .= "\n_Estuaire Eat - Call Center_";
+
+        foreach ($phones as $phone) {
+            $this->sendMessage($phone, $message);
+        }
     }
 }

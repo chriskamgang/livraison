@@ -16,6 +16,7 @@ class Restaurant extends Model
         'opening_hours', 'delivery_fee', 'delivery_time_min',
         'delivery_time_max', 'minimum_order',
         'rating', 'ratings_count',
+        'video_url',
         'is_active', 'is_featured', 'is_open',
     ];
 

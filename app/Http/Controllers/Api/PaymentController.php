@@ -5,17 +5,135 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Services\FreemopayService;
+use App\Services\GfsService;
+use App\Services\KpayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    private FreemopayService $freemopayService;
+    private KpayService $kpay;
+    private GfsService $gfs;
 
-    public function __construct(FreemopayService $freemopayService)
+    public function __construct(KpayService $kpay, GfsService $gfs)
     {
-        $this->freemopayService = $freemopayService;
+        $this->kpay = $kpay;
+        $this->gfs  = $gfs;
+    }
+
+    /**
+     * Initialiser un paiement par compte GFS : renvoie le lien de la page de paiement GFS.
+     */
+    public function initiateGfsPayment(Request $request)
+    {
+        $validated = $request->validate([
+            'order_id' => 'required|exists:orders,id',
+        ]);
+
+        $order = Order::find($validated['order_id']);
+
+        if ($order->user_id !== auth()->id()) {
+            return response()->json(['message' => 'Accès non autorisé'], 403);
+        }
+        if ($order->payment_method !== 'gfs') {
+            return response()->json(['message' => 'Cette commande n\'est pas payable par GFS'], 400);
+        }
+        if ($order->payment_status === 'paid') {
+            return response()->json(['message' => 'Cette commande est déjà payée'], 400);
+        }
+        if (!$this->gfs->isConfigured()) {
+            return response()->json(['message' => 'Le paiement GFS n\'est pas encore disponible.'], 503);
+        }
+
+        $reference = 'GFS-' . $order->id . '-' . time();
+
+        $payment = Payment::create([
+            'order_id'  => $order->id,
+            'user_id'   => auth()->id(),
+            'amount'    => $order->total,
+            'method'    => 'gfs',
+            'status'    => 'pending',
+            'reference' => $reference,
+        ]);
+
+        $result = $this->gfs->createPayment([
+            'amount'      => (int) $order->total,
+            'reference'   => $reference,
+            'description' => 'Commande Estuaire Eat #' . ($order->order_number ?? $order->id),
+        ]);
+
+        if (!$result['success']) {
+            $payment->update(['status' => 'failed', 'failure_reason' => $result['message']]);
+            return response()->json(['message' => $result['message']], 400);
+        }
+
+        $payment->update([
+            'transaction_reference' => $result['data']['paymentRef'],
+            'provider_response'     => $result['data'],
+        ]);
+
+        return response()->json([
+            'message' => 'Paiement GFS créé. Validez-le avec votre numéro client et votre code PIN.',
+            'payment' => [
+                'id'          => $payment->id,
+                'status'      => 'pending',
+                'amount'      => $order->total,
+                'payment_url' => $result['data']['paymentUrl'],
+                'expires_at'  => $result['data']['expiresAt'] ?? null,
+            ],
+        ]);
+    }
+
+    /**
+     * Webhook GFS — appelé quand le client a validé le paiement sur la page GFS.
+     */
+    public function gfsWebhook(Request $request)
+    {
+        $data = $request->json()->all();
+
+        if (!$this->gfs->verifyWebhookSignature($data, (string) $request->header('X-GFS-Signature', ''))) {
+            Log::warning('GFS webhook: signature invalide');
+            return response()->json(['message' => 'Invalid signature'], 401);
+        }
+
+        $payment = Payment::where('reference', $data['orderId'] ?? '')
+            ->where('method', 'gfs')
+            ->first();
+
+        if (!$payment) {
+            Log::warning('GFS webhook: paiement introuvable', ['orderId' => $data['orderId'] ?? null]);
+            return response()->json(['message' => 'Payment not found'], 404);
+        }
+
+        if ($payment->status === 'completed') {
+            return response()->json(['message' => 'Already processed']);
+        }
+
+        // Le montant payé doit correspondre exactement à la commande
+        if ((int) round((float) ($data['amount'] ?? 0)) !== (int) round((float) $payment->amount)) {
+            Log::warning('GFS webhook: montant différent', ['payment_id' => $payment->id, 'amount' => $data['amount'] ?? null]);
+            return response()->json(['message' => 'Amount mismatch'], 422);
+        }
+
+        if (($data['status'] ?? null) === 'COMPLETED') {
+            $this->markPaid($payment, $data);
+        }
+
+        return response()->json(['message' => 'Webhook processed']);
+    }
+
+    private function markPaid(Payment $payment, array $providerData): void
+    {
+        $payment->update([
+            'status'            => 'completed',
+            'completed_at'      => now(),
+            'provider_response' => $providerData,
+        ]);
+        $payment->order->update([
+            'payment_status' => 'paid',
+            'status'         => 'confirmed',
+        ]);
+        Log::info('Paiement confirmé', ['payment_id' => $payment->id, 'method' => $payment->method]);
     }
 
     /**
@@ -24,49 +142,43 @@ class PaymentController extends Controller
     public function initiateMobilePayment(Request $request)
     {
         $validated = $request->validate([
-            'order_id' => 'required|exists:orders,id',
-            'phone' => 'required|string|min:9|max:15',
+            'order_id'       => 'required|exists:orders,id',
+            'phone'          => 'required|string|min:9|max:15',
             'payment_method' => 'required|in:mtn_momo,orange_money',
         ]);
 
         $order = Order::find($validated['order_id']);
 
-        // Vérifier que la commande appartient à l'utilisateur
         if ($order->user_id !== auth()->id()) {
             return response()->json(['message' => 'Accès non autorisé'], 403);
         }
 
-        // Vérifier que la commande n'est pas déjà payée
         if ($order->payment_status === 'paid') {
             return response()->json(['message' => 'Cette commande est déjà payée'], 400);
         }
 
-        // Créer une entrée de paiement avec une référence unique
-        $reference = 'PAY-' . strtoupper(uniqid()) . '-' . time();
+        $externalId = 'PAY-' . $order->id . '-' . time();
 
         $payment = Payment::create([
-            'order_id' => $order->id,
-            'user_id' => auth()->id(),
-            'amount' => $order->total,
-            'method' => $validated['payment_method'],
-            'status' => 'pending',
-            'phone' => $validated['phone'],
-            'reference' => $reference,
+            'order_id'  => $order->id,
+            'user_id'   => auth()->id(),
+            'amount'    => $order->total,
+            'method'    => $validated['payment_method'],
+            'status'    => 'pending',
+            'phone'     => $validated['phone'],
+            'reference' => $externalId,
         ]);
 
-        // Initialiser le paiement avec Freemopay
-        $callbackUrl = url('/api/webhooks/freemopay');
-
-        $result = $this->freemopayService->initiatePayment([
-            'phone' => $validated['phone'],
-            'amount' => (int) $order->total,
-            'externalId' => $payment->id,
-            'callback' => $callbackUrl,
+        $result = $this->kpay->initiatePayment([
+            'phone'          => $validated['phone'],
+            'amount'         => (int) $order->total,
+            'externalId'     => $externalId,
+            'payment_method' => $validated['payment_method'],
         ]);
 
         if (!$result['success']) {
             $payment->update([
-                'status' => 'failed',
+                'status'         => 'failed',
                 'failure_reason' => $result['message'] ?? 'Erreur inconnue',
             ]);
 
@@ -75,19 +187,19 @@ class PaymentController extends Controller
             ], 400);
         }
 
-        // Sauvegarder la référence Freemopay
+        // Stocker l'ID KPay pour le polling de statut
         $payment->update([
-            'transaction_reference' => $result['data']['reference'],
-            'provider_response' => json_encode($result['data']),
+            'transaction_reference' => $result['data']['paymentId'],
+            'provider_response'     => json_encode($result['data']),
         ]);
 
         return response()->json([
             'message' => 'Paiement initialisé. Veuillez confirmer sur votre téléphone.',
             'payment' => [
-                'id' => $payment->id,
+                'id'        => $payment->id,
                 'reference' => $result['data']['reference'],
-                'status' => 'pending',
-                'amount' => $order->total,
+                'status'    => 'pending',
+                'amount'    => $order->total,
             ],
         ]);
     }
@@ -103,47 +215,60 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Paiement non trouvé'], 404);
         }
 
-        // Vérifier que le paiement appartient à l'utilisateur
         if ($payment->user_id !== auth()->id()) {
             return response()->json(['message' => 'Accès non autorisé'], 403);
         }
 
-        // Si déjà complété, retourner l'état actuel
+        // Si déjà dans un état terminal, retourner directement
         if (in_array($payment->status, ['completed', 'failed', 'cancelled'])) {
             return response()->json([
                 'payment' => [
-                    'id' => $payment->id,
-                    'status' => $payment->status,
-                    'amount' => $payment->amount,
+                    'id'       => $payment->id,
+                    'status'   => $payment->status,
+                    'amount'   => $payment->amount,
                     'order_id' => $payment->order_id,
                 ],
             ]);
         }
 
-        // Vérifier auprès de Freemopay
-        if ($payment->transaction_reference) {
-            $result = $this->freemopayService->getPaymentStatus($payment->transaction_reference);
+        // Paiement GFS : on interroge la passerelle GFS
+        if ($payment->method === 'gfs' && $payment->transaction_reference) {
+            $result = $this->gfs->getPaymentStatus($payment->transaction_reference);
 
             if ($result['success']) {
-                $status = $result['data']['status'];
+                $gfsStatus = $result['data']['status'] ?? null;
+                $amountOk  = (int) round((float) ($result['data']['amount'] ?? 0)) === (int) round((float) $payment->amount);
 
-                if ($status === 'SUCCESS') {
+                if ($gfsStatus === 'COMPLETED' && $amountOk) {
+                    $this->markPaid($payment, $result['data']);
+                } elseif (in_array($gfsStatus, ['EXPIRED', 'FAILED', 'CANCELLED'], true)) {
                     $payment->update([
-                        'status' => 'completed',
-                        'completed_at' => now(),
-                        'provider_response' => json_encode($result['data']),
+                        'status'         => $gfsStatus === 'CANCELLED' ? 'cancelled' : 'failed',
+                        'failure_reason' => $gfsStatus === 'EXPIRED' ? 'Lien de paiement expiré' : 'Paiement GFS échoué',
                     ]);
+                }
+            }
+        }
+        // Vérifier auprès de KPay via l'ID de transaction
+        elseif ($payment->transaction_reference) {
+            $result = $this->kpay->getPaymentStatus($payment->transaction_reference);
 
-                    // Mettre à jour la commande : payée + confirmée (en attente de préparation)
+            if ($result['success']) {
+                $kpayStatus = $result['data']['status'];
+
+                if ($kpayStatus === 'COMPLETED') {
+                    $payment->update([
+                        'status'       => 'completed',
+                        'completed_at' => now(),
+                    ]);
                     $payment->order->update([
                         'payment_status' => 'paid',
-                        'status' => 'confirmed',
+                        'status'         => 'confirmed',
                     ]);
-                } elseif ($status === 'FAILED') {
+                } elseif (in_array($kpayStatus, ['FAILED', 'CANCELLED'])) {
                     $payment->update([
-                        'status' => 'failed',
-                        'failure_reason' => $result['data']['reason'] ?? 'Paiement échoué',
-                        'provider_response' => json_encode($result['data']),
+                        'status'         => strtolower($kpayStatus),
+                        'failure_reason' => $result['data']['failureReason'] ?? 'Paiement échoué',
                     ]);
                 }
             }
@@ -151,70 +276,71 @@ class PaymentController extends Controller
 
         return response()->json([
             'payment' => [
-                'id' => $payment->id,
-                'status' => $payment->status,
-                'amount' => $payment->amount,
+                'id'       => $payment->id,
+                'status'   => $payment->status,
+                'amount'   => $payment->amount,
                 'order_id' => $payment->order_id,
             ],
         ]);
     }
 
     /**
-     * Webhook Freemopay - reçoit les notifications de paiement
+     * Webhook KPay — reçoit les notifications de statut
      */
-    public function freemopayWebhook(Request $request)
+    public function kpayWebhook(Request $request)
     {
-        Log::info('Freemopay webhook received', $request->all());
+        $rawBody  = $request->getContent();
+        $signature = $request->header('X-KPAY-Signature', '');
 
-        $data = $request->validate([
-            'status' => 'required|string',
-            'reference' => 'required|string',
-            'amount' => 'required|numeric',
-            'externalId' => 'required',
-            'message' => 'nullable|string',
-        ]);
+        if (!$this->kpay->verifyWebhookSignature($rawBody, $signature)) {
+            Log::warning('KPay webhook: signature invalide');
+            return response()->json(['message' => 'Invalid signature'], 401);
+        }
 
-        // Trouver le paiement par externalId
-        $payment = Payment::find($data['externalId']);
+        $data = json_decode($rawBody, true);
+        Log::info('KPay webhook received', $data);
+
+        $externalId = $data['externalId'] ?? null;
+        $status     = $data['status'] ?? null;
+
+        if (!$externalId || !$status) {
+            return response()->json(['message' => 'Missing fields'], 400);
+        }
+
+        // Trouver le paiement par notre référence (externalId)
+        $payment = Payment::where('reference', $externalId)->first();
 
         if (!$payment) {
-            Log::warning('Freemopay webhook: payment not found', ['externalId' => $data['externalId']]);
+            Log::warning('KPay webhook: payment not found', ['externalId' => $externalId]);
             return response()->json(['message' => 'Payment not found'], 404);
         }
 
-        // Vérifier la référence
-        if ($payment->transaction_reference !== $data['reference']) {
-            Log::warning('Freemopay webhook: reference mismatch', [
-                'expected' => $payment->transaction_reference,
-                'received' => $data['reference'],
-            ]);
+        // Idempotence — ignorer si déjà traité
+        if (in_array($payment->status, ['completed', 'failed', 'cancelled'])) {
+            return response()->json(['message' => 'Already processed']);
         }
 
-        // Mettre à jour le statut
-        if ($data['status'] === 'SUCCESS') {
+        if ($status === 'COMPLETED') {
             $payment->update([
-                'status' => 'completed',
-                'completed_at' => now(),
+                'status'            => 'completed',
+                'completed_at'      => now(),
                 'provider_response' => json_encode($data),
             ]);
-
-            // Mettre à jour la commande : payée + confirmée (en attente de préparation)
             $payment->order->update([
                 'payment_status' => 'paid',
-                'status' => 'confirmed',
+                'status'         => 'confirmed',
             ]);
+            Log::info('KPay payment completed', ['payment_id' => $payment->id]);
 
-            Log::info('Payment completed successfully', ['payment_id' => $payment->id]);
-        } elseif ($data['status'] === 'FAILED') {
+        } elseif (in_array($status, ['FAILED', 'CANCELLED'])) {
             $payment->update([
-                'status' => 'failed',
-                'failure_reason' => $data['message'] ?? 'Paiement échoué',
+                'status'            => strtolower($status),
+                'failure_reason'    => $data['failureReason'] ?? 'Paiement échoué',
                 'provider_response' => json_encode($data),
             ]);
-
-            Log::info('Payment failed', ['payment_id' => $payment->id, 'reason' => $data['message']]);
+            Log::info('KPay payment failed/cancelled', ['payment_id' => $payment->id, 'status' => $status]);
         }
 
-        return response()->json(['message' => 'Webhook processed successfully']);
+        return response()->json(['message' => 'Webhook processed']);
     }
 }

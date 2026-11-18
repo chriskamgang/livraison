@@ -79,6 +79,14 @@ class DriverResource extends Resource
                         ->label('Plaque d\'immatriculation'),
                     Forms\Components\TextInput::make('license_number')
                         ->label('N° Permis de conduire'),
+                    Forms\Components\Select::make('driver_type')
+                        ->label('Type de livreur')
+                        ->options([
+                            'interne' => 'Interne (750 XAF/livraison)',
+                            'externe' => 'Externe (1 000 XAF/livraison)',
+                        ])
+                        ->default('interne')
+                        ->required(),
                     Forms\Components\Toggle::make('is_verified')
                         ->label('Documents vérifiés')
                         ->helperText('Cocher après vérification des documents'),
@@ -117,6 +125,11 @@ class DriverResource extends Resource
                 Tables\Columns\TextColumn::make('vehicle_number')
                     ->label('Plaque')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('driver_type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn ($state) => $state === 'externe' ? 'warning' : 'success')
+                    ->formatStateUsing(fn ($state) => $state === 'externe' ? 'Externe' : 'Interne'),
                 Tables\Columns\TextColumn::make('deliveries_count')
                     ->label('Livraisons')
                     ->counts('deliveries')

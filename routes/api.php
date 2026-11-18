@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\AccountDeletionController;
 use App\Http\Controllers\Api\MarketOrderController;
+use App\Http\Controllers\Api\RestaurantDashboardController;
+use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\FavoriteController;
 
 // ==========================================
 // ROUTES PUBLIQUES
@@ -20,6 +23,10 @@ Route::prefix('auth')->group(function () {
     Route::post('/register/driver', [AuthController::class, 'registerDriver']);
     Route::post('/google', [AuthController::class, 'googleLogin']);
     Route::post('/apple', [AuthController::class, 'appleLogin']);
+
+    // Mot de passe oublié : code à 6 chiffres par WhatsApp / email
+    Route::post('/password/forgot', [PasswordResetController::class, 'forgot'])->middleware('throttle:5,10');
+    Route::post('/password/reset', [PasswordResetController::class, 'reset'])->middleware('throttle:10,10');
 });
 
 // Restaurants publics (pas besoin d'auth pour parcourir)
@@ -32,7 +39,8 @@ Route::prefix('restaurants')->group(function () {
 });
 
 // Webhooks (publics)
-Route::post('/webhooks/freemopay', [PaymentController::class, 'freemopayWebhook']);
+Route::post('/webhooks/kpay', [PaymentController::class, 'kpayWebhook']);
+Route::post('/webhooks/gfs', [PaymentController::class, 'gfsWebhook']);
 
 // Account deletion (public endpoints)
 Route::prefix('account-deletion')->group(function () {
@@ -62,6 +70,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/push-token', [ProfileController::class, 'deletePushToken']);
     });
 
+    // Les apps client et livreur appellent /api/push-token (sans "profile") :
+    // alias pour que les versions déjà installées enregistrent leur jeton.
+    Route::post('/push-token', [ProfileController::class, 'updatePushToken']);
+    Route::delete('/push-token', [ProfileController::class, 'deletePushToken']);
+
     // ==========================================
     // ROUTES CLIENT
     // ==========================================
@@ -74,12 +87,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/track', [OrderController::class, 'track']); // Suivi temps réel
     });
 
+    Route::prefix('favorites')->group(function () {
+        Route::get('/', [FavoriteController::class, 'index']);
+        Route::post('/toggle', [FavoriteController::class, 'toggle']);
+    });
+
     Route::prefix('coupons')->group(function () {
         Route::post('/validate', [OrderController::class, 'validateCoupon']);
     });
 
     Route::prefix('payments')->group(function () {
         Route::post('/initiate-mobile', [PaymentController::class, 'initiateMobilePayment']);
+        Route::post('/initiate-gfs', [PaymentController::class, 'initiateGfsPayment']);
         Route::get('/{id}/status', [PaymentController::class, 'checkPaymentStatus']);
     });
 
@@ -103,6 +122,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Position du livreur en temps réel pour le client
     Route::get('/deliveries/{id}/driver-location', [DeliveryController::class, 'getDriverLocation']);
+
+    // ==========================================
+    // ROUTES RESTAURANT ADMIN
+    // ==========================================
+    Route::prefix('restaurant')->group(function () {
+        Route::get('/dashboard', [RestaurantDashboardController::class, 'dashboard']);
+        Route::get('/orders', [RestaurantDashboardController::class, 'orders']);
+        Route::get('/orders/{id}', [RestaurantDashboardController::class, 'orderDetail']);
+        Route::post('/orders/{id}/status', [RestaurantDashboardController::class, 'updateStatus']);
+        Route::post('/toggle-open', [RestaurantDashboardController::class, 'toggleOpen']);
+    });
 
     // ==========================================
     // ROUTES LIVREUR

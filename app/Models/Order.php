@@ -14,11 +14,13 @@ class Order extends Model
         'status', 'subtotal', 'delivery_fee', 'discount_amount', 'total',
         'payment_method', 'payment_status',
         'special_instructions', 'cancellation_reason',
-        'estimated_delivery_at', 'delivered_at',
+        'estimated_delivery_at', 'preparing_at', 'estimated_ready_at', 'delivered_at',
     ];
 
     protected $casts = [
         'estimated_delivery_at' => 'datetime',
+        'preparing_at' => 'datetime',
+        'estimated_ready_at' => 'datetime',
         'delivered_at' => 'datetime',
         'subtotal' => 'decimal:2',
         'total' => 'decimal:2',
@@ -48,6 +50,31 @@ class Order extends Model
             $order->order_number = 'RD-' . strtoupper(uniqid());
         });
 
+        // Après un changement de statut : livreurs et livraison
+        static::updated(function ($order) {
+            if (!$order->wasChanged('status')) {
+                return;
+            }
+
+            // SMS au client à chaque changement de statut (après la réponse, pour ne pas ralentir)
+            $status = $order->status;
+            dispatch(fn () => \App\Services\CustomerSms::statusChanged($order, $status))->afterResponse();
+
+            // La commande devient visible aux livreurs (ex. paiement en ligne confirmé) → push + SMS.
+            $pickable = \App\Http\Controllers\Api\DeliveryController::PICKABLE_ORDER_STATUSES;
+            $justPickable = in_array($order->status, $pickable, true)
+                && !in_array($order->getOriginal('status'), $pickable, true);
+            if ($justPickable) {
+                \App\Services\DriverNotifier::orderAvailable($order);
+            }
+
+            // Commande annulée : la livraison encore ouverte est close
+            if ($order->status === 'cancelled') {
+                $delivery = $order->delivery()->whereNotIn('status', ['delivered', 'failed'])->first();
+                $delivery?->update(['status' => 'failed', 'notes' => 'Commande annulée']);
+            }
+        });
+
         // Créer une notification lors du changement de statut
         static::updating(function ($order) {
             if ($order->isDirty('status')) {
@@ -65,7 +92,22 @@ class Order extends Model
                     'cancelled'  => ['title' => 'Commande annulée', 'body' => 'Votre commande #' . $order->order_number . ' a été annulée.'],
                 ];
 
+                // Temps de cuisson : quand on passe en "preparing"
+                if ($newStatus === 'preparing' && !$order->preparing_at) {
+                    $restaurant = $order->restaurant;
+                    $cookingMinutes = $restaurant->delivery_time_max ?? 30;
+                    $order->preparing_at = now();
+                    $order->estimated_ready_at = now()->addMinutes($cookingMinutes);
+                }
+
                 if (isset($messages[$newStatus])) {
+                    // Ajouter le temps restant dans le message si en preparation
+                    if ($newStatus === 'preparing' && $order->estimated_ready_at) {
+                        $minutesLeft = now()->diffInMinutes($order->estimated_ready_at, false);
+                        $minutesLeft = max($minutesLeft, 0);
+                        $messages[$newStatus]['body'] .= " Temps estime : ~{$minutesLeft} min.";
+                    }
+
                     // Créer la notification dans la base de données
                     \App\Models\CustomNotification::create([
                         'user_id' => $order->user_id,
@@ -85,6 +127,26 @@ class Order extends Model
                             $messages[$newStatus]['body'],
                             ['order_id' => $order->id, 'status' => $newStatus]
                         );
+                    }
+
+                    // WhatsApp au client + call center selon le statut
+                    try {
+                        $whatsapp = new \App\Services\WhatsAppService();
+                        $customer = $user ?? \App\Models\User::find($order->user_id);
+
+                        if ($newStatus === 'preparing' && $customer) {
+                            $whatsapp->notifyOrderPreparing($order->load('restaurant'), $customer);
+                        }
+
+                        if ($newStatus === 'ready') {
+                            if ($customer) {
+                                $whatsapp->notifyOrderReady($order, $customer);
+                            }
+                            // Notifier le call center que c'est pret
+                            $whatsapp->notifyCallCenterOrderReady($order->load(['restaurant', 'delivery.driver']));
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('WhatsApp status notification failed', ['error' => $e->getMessage()]);
                     }
                 }
             }

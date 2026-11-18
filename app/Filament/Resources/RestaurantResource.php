@@ -97,6 +97,24 @@ class RestaurantResource extends Resource
                         ->imageResizeTargetHeight('600'),
                 ])->columns(2),
 
+            Forms\Components\Section::make('Photos & Videos')
+                ->schema([
+                    Forms\Components\FileUpload::make('photos')
+                        ->label('Photos du restaurant')
+                        ->image()
+                        ->multiple()
+                        ->maxFiles(10)
+                        ->directory('restaurants/photos')
+                        ->reorderable()
+                        ->columnSpanFull(),
+                    Forms\Components\FileUpload::make('video_url')
+                        ->label('Vidéo du restaurant')
+                        ->acceptedFileTypes(['video/mp4', 'video/quicktime', 'video/avi', 'video/webm', 'video/x-msvideo'])
+                        ->directory('restaurants/videos')
+                        ->maxSize(204800)
+                        ->columnSpanFull(),
+                ]),
+
             Forms\Components\Section::make('Localisation')
                 ->schema([
                     Forms\Components\TextInput::make('address')
@@ -152,10 +170,26 @@ class RestaurantResource extends Resource
             Forms\Components\Section::make('Administrateur du restaurant')
                 ->schema([
                     Forms\Components\Select::make('user_id')
-                        ->label('Proprietaire')
+                        ->label('Proprietaire existant')
                         ->options(User::where('role', 'restaurant_admin')->pluck('name', 'id'))
                         ->searchable()
-                        ->helperText('Selectionnez le proprietaire ou creez-en un depuis Utilisateurs > Admins Restaurant'),
+                        ->helperText('Choisissez un compte existant, ou créez-en un nouveau ci-dessous.'),
+
+                    Forms\Components\Fieldset::make('Créer un nouveau compte')
+                        ->schema([
+                            Forms\Components\TextInput::make('admin_name')
+                                ->label('Nom complet')
+                                ->dehydrated(false),
+                            Forms\Components\TextInput::make('admin_email')
+                                ->label('Email')
+                                ->email()
+                                ->dehydrated(false),
+                            Forms\Components\TextInput::make('admin_password')
+                                ->label('Mot de passe')
+                                ->password()
+                                ->revealable()
+                                ->dehydrated(false),
+                        ])->columns(3),
                 ])
                 ->visible(fn () => static::isSuperAdmin()),
         ]);

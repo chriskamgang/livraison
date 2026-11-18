@@ -17,6 +17,7 @@ class PaymentMethodsChart extends ChartWidget
             'mtn_momo' => ['label' => 'MTN MoMo', 'color' => 'rgba(255, 204, 0, 0.8)'],
             'orange_money' => ['label' => 'Orange Money', 'color' => 'rgba(255, 107, 0, 0.8)'],
             'cash' => ['label' => 'Especes', 'color' => 'rgba(107, 114, 128, 0.8)'],
+            'gfs' => ['label' => 'Compte GFS', 'color' => 'rgba(14, 90, 138, 0.8)'],
             'card' => ['label' => 'Carte', 'color' => 'rgba(59, 130, 246, 0.8)'],
         ];
 

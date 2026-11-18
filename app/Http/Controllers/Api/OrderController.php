@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\WhatsAppService;
+use App\Services\ExpoPushNotificationService;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -31,7 +32,7 @@ class OrderController extends Controller
             'items.*.quantity'     => 'required|integer|min:1',
             'items.*.options'      => 'nullable|array',
             'items.*.special_instructions' => 'nullable|string',
-            'payment_method'       => 'required|in:cash,mtn_momo,orange_money',
+            'payment_method'       => 'required|in:cash,mtn_momo,orange_money,gfs',
             'coupon_code'          => 'nullable|string',
             'special_instructions' => 'nullable|string',
         ]);
@@ -82,13 +83,17 @@ class OrderController extends Controller
                 $discountAmount = match ($coupon->type) {
                     'percentage'   => min($subtotal * ($coupon->value / 100), $coupon->maximum_discount ?? PHP_INT_MAX),
                     'fixed_amount' => min($coupon->value, $subtotal),
-                    'free_delivery'=> $restaurant->delivery_fee,
+                    // Livraison offerte : on met les frais à 0 plus bas (pas de réduction en plus)
+                    'free_delivery'=> 0,
                     default        => 0,
                 };
             }
         }
 
-        $deliveryFee = ($couponId && \App\Models\Coupon::find($couponId)?->type === 'free_delivery') ? 0 : $restaurant->delivery_fee;
+        // Livraison gratuite si coupon « livraison offerte » ou paiement par compte GFS
+        $freeDelivery = $validated['payment_method'] === 'gfs'
+            || ($couponId && \App\Models\Coupon::find($couponId)?->type === 'free_delivery');
+        $deliveryFee = $freeDelivery ? 0 : $restaurant->delivery_fee;
         $total       = $subtotal + $deliveryFee - $discountAmount;
 
         $isCash = $validated['payment_method'] === 'cash';
@@ -132,13 +137,32 @@ class OrderController extends Controller
             \App\Models\Coupon::find($couponId)->increment('usage_count');
         }
 
-        // Envoyer notification WhatsApp au client
+        // Envoyer notifications WhatsApp
         try {
             $whatsappService = new WhatsAppService();
-            $whatsappService->notifyOrderReceived($order->load('restaurant'), $request->user());
+            $orderWithDetails = $order->load(['restaurant', 'items', 'address']);
+
+            // Notification au client
+            $whatsappService->notifyOrderReceived($orderWithDetails, $request->user());
+
+            // Notification au restaurant
+            $whatsappService->notifyRestaurantNewOrder($orderWithDetails, $request->user());
+
+            // Notification au call center
+            $whatsappService->notifyCallCenterNewOrder($orderWithDetails, $request->user());
         } catch (\Exception $e) {
             \Log::error('WhatsApp notification failed', ['error' => $e->getMessage()]);
         }
+
+        // Commande en espèces : validée tout de suite → les livreurs sont prévenus maintenant.
+        // Paiement en ligne : ils le seront quand le paiement passe la commande à « confirmed » (Order::updated).
+        if ($order->status === 'confirmed') {
+            \App\Services\DriverNotifier::orderAvailable($order);
+        }
+        dispatch(fn () => \App\Services\CustomerSms::orderReceived($order))->afterResponse();
+
+        // Notifier les admins du restaurant par push
+        $this->notifyRestaurantAdmins($order);
 
         return response()->json([
             'message' => 'Commande passée avec succès !',
@@ -161,7 +185,7 @@ class OrderController extends Controller
     {
         $order = $request->user()->orders()
             ->with([
-                'delivery.driver:id,name,avatar,phone,rating,vehicle_type,current_latitude,current_longitude',
+                'delivery.driver:id,name,avatar,phone,rating,vehicle_type,current_latitude,current_longitude,updated_at',
                 'restaurant:id,name,address,latitude,longitude',
                 'address',
             ])
@@ -170,16 +194,28 @@ class OrderController extends Controller
         $driver = $order->delivery?->driver;
         $driverLocation = null;
 
-        if ($driver && $driver->current_latitude && $driver->current_longitude) {
+        // Position visible seulement pendant la course : vers le restaurant puis vers le client
+        $activeDelivery = in_array($order->delivery?->status, ['assigned', 'going_to_restaurant', 'at_restaurant', 'picked_up', 'on_the_way', 'arrived'], true);
+        if ($activeDelivery && $driver && $driver->current_latitude && $driver->current_longitude) {
             $driverLocation = [
-                'latitude'  => (float) $driver->current_latitude,
-                'longitude' => (float) $driver->current_longitude,
+                'latitude'   => (float) $driver->current_latitude,
+                'longitude'  => (float) $driver->current_longitude,
+                'updated_at' => $driver->updated_at,
             ];
+        }
+
+        // Temps de cuisson restant
+        $cookingTimeLeft = null;
+        if ($order->estimated_ready_at && in_array($order->status, ['preparing', 'confirmed'])) {
+            $cookingTimeLeft = max(0, now()->diffInMinutes($order->estimated_ready_at, false));
         }
 
         return response()->json([
             'order_status'     => $order->status,
             'delivery_status'  => $order->delivery?->status,
+            'preparing_at'     => $order->preparing_at,
+            'estimated_ready_at' => $order->estimated_ready_at,
+            'cooking_time_left'  => $cookingTimeLeft,
             'driver'           => [
                 'id'           => $driver->id ?? null,
                 'name'         => $driver->name ?? null,
@@ -262,6 +298,38 @@ class OrderController extends Controller
         return response()->json(['message' => 'Merci pour votre avis !']);
     }
 
+    /**
+     * Notifier les admins du restaurant par push
+     */
+    private function notifyRestaurantAdmins($order): void
+    {
+        try {
+            $admins = \App\Models\User::where('role', 'restaurant_admin')
+                ->where('restaurant_id', $order->restaurant_id)
+                ->where(function ($q) {
+                    $q->where('push_token', 'like', 'ExponentPushToken%')
+                      ->orWhere('fcm_token', 'like', 'ExponentPushToken%');
+                })
+                ->get();
+
+            if ($admins->isEmpty()) return;
+
+            $pushService = new ExpoPushNotificationService();
+            $itemCount = $order->items->count();
+
+            $notifications = $admins->map(fn($admin) => [
+                'token' => $admin->push_token ?: $admin->fcm_token,
+                'title' => 'Nouvelle commande !',
+                'body'  => "{$itemCount} article(s) — " . number_format($order->total, 0, ',', ' ') . " XAF",
+                'data'  => ['type' => 'new_restaurant_order', 'order_id' => $order->id],
+            ])->toArray();
+
+            $pushService->sendBulkPushNotifications($notifications);
+        } catch (\Exception $e) {
+            \Log::error('Push to restaurant admins failed', ['error' => $e->getMessage()]);
+        }
+    }
+
     // POST /api/coupons/validate
     public function validateCoupon(Request $request)
     {
@@ -284,7 +352,7 @@ class OrderController extends Controller
         $discount = match ($coupon->type) {
             'percentage'   => min($request->subtotal * ($coupon->value / 100), $coupon->maximum_discount ?? PHP_INT_MAX),
             'fixed_amount' => min($coupon->value, $request->subtotal),
-            'free_delivery'=> \App\Models\Restaurant::find($request->restaurant_id)->delivery_fee,
+            'free_delivery'=> 0, // l'app met les frais de livraison à 0 pour ce type de coupon
             default        => 0,
         };
 

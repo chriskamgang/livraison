@@ -7,6 +7,9 @@ use App\Filament\Traits\HasRestaurantScope;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Delivery;
+use App\Models\MenuItem;
+use App\Models\Restaurant;
+use App\Services\OrderTransfer;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -65,6 +68,7 @@ class OrderResource extends Resource
                             'cash'         => 'Especes',
                             'mtn_momo'     => 'MTN Mobile Money',
                             'orange_money' => 'Orange Money',
+                            'gfs'          => 'Compte GFS',
                             'card'         => 'Carte bancaire',
                         ]),
                     Forms\Components\Select::make('payment_status')
@@ -231,6 +235,66 @@ class OrderResource extends Resource
                         }
                         $record->update(['status' => 'ready']);
                         Notification::make()->success()->title('Livreur assigne')->send();
+                    }),
+                Tables\Actions\Action::make('change_restaurant')
+                    ->label('Changer de restaurant')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->color('warning')
+                    ->visible(fn (Order $record) => static::isSuperAdmin() && OrderTransfer::canTransfer($record))
+                    ->modalHeading(fn (Order $record) => "Transférer la commande {$record->order_number}")
+                    ->modalDescription('À faire après avoir appelé le client et obtenu son accord. Le client, le nouveau restaurant et le livreur (s\'il y en a un) sont prévenus.')
+                    ->modalSubmitActionLabel('Transférer la commande')
+                    ->fillForm(fn (Order $record) => [
+                        'items' => $record->items->map(fn ($i) => ['menu_item_id' => null, 'quantity' => $i->quantity])->all(),
+                    ])
+                    ->form(fn (Order $record) => [
+                        Forms\Components\Placeholder::make('current')
+                            ->label('Commande actuelle — ' . ($record->restaurant?->name ?? ''))
+                            ->content($record->items->map(fn ($i) => "{$i->quantity} × {$i->item_name} (" . number_format($i->item_price, 0, ',', ' ') . ' F)')->implode(' · ')
+                                . ' — Total ' . number_format($record->total, 0, ',', ' ') . ' FCFA'
+                                . ($record->payment_status === 'paid' ? ' (déjà payé en ligne)' : '')),
+                        Forms\Components\Select::make('restaurant_id')
+                            ->label('Nouveau restaurant')
+                            ->options(fn () => Restaurant::where('is_active', true)->where('id', '!=', $record->restaurant_id)->orderBy('name')->pluck('name', 'id'))
+                            ->searchable()
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(fn (Forms\Set $set, Forms\Get $get) => $set('items', collect($get('items') ?? [])->map(fn ($i) => ['menu_item_id' => null, 'quantity' => $i['quantity'] ?? 1])->all())),
+                        Forms\Components\Repeater::make('items')
+                            ->label('Plats dans le nouveau restaurant')
+                            ->schema([
+                                Forms\Components\Select::make('menu_item_id')
+                                    ->label('Plat')
+                                    ->options(fn (Forms\Get $get) => MenuItem::where('restaurant_id', $get('../../restaurant_id'))
+                                        ->where('is_available', true)->orderBy('name')->get()
+                                        ->mapWithKeys(fn ($m) => [$m->id => "{$m->name} — " . number_format($m->effective_price, 0, ',', ' ') . ' F']))
+                                    ->searchable()
+                                    ->required()
+                                    ->disabled(fn (Forms\Get $get) => !$get('../../restaurant_id'))
+                                    ->columnSpan(3),
+                                Forms\Components\TextInput::make('quantity')
+                                    ->label('Qté')->numeric()->minValue(1)->default(1)->required(),
+                            ])
+                            ->columns(4)
+                            ->minItems(1)
+                            ->addActionLabel('Ajouter un plat')
+                            ->reorderable(false),
+                        Forms\Components\Textarea::make('note')
+                            ->label('Note (facultatif)')
+                            ->placeholder('Ex. : poulet épuisé chez le 1er restaurant, client d\'accord par téléphone')
+                            ->rows(2),
+                    ])
+                    ->action(function (Order $record, array $data, Tables\Actions\Action $action): void {
+                        try {
+                            $order = OrderTransfer::transfer($record, Restaurant::findOrFail($data['restaurant_id']), $data['items'] ?? [], $data['note'] ?? null);
+                            Notification::make()->success()
+                                ->title('Commande transférée chez ' . $order->restaurant->name)
+                                ->body('Nouveau total : ' . number_format($order->total, 0, ',', ' ') . ' FCFA. Client, restaurant et livreur prévenus.')
+                                ->send();
+                        } catch (\RuntimeException $e) {
+                            Notification::make()->danger()->title('Transfert impossible')->body($e->getMessage())->persistent()->send();
+                            $action->halt();
+                        }
                     }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make(),
